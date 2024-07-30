@@ -927,30 +927,31 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
     # Create individual summaries for each test
     test_summaries <- c()
-    for (test in row.names(mtr_rounded)) {
-        test_data <- mtr_rounded[test,]
-        significant <- test_data$p < 0.05
-        significant_text <- if(significant) "" else "not "
+    for (i in 1:length(optionsList$whichTests)) {
+      test <- row.names(mtr_rounded)[i]
+      test_data <- mtr_rounded[test,]
+      significant <- test_data$p < 0.05
+      significant_text <- if(significant) "" else "not "
 
-        test_summary <- sprintf("For the %s test, the difference between %s is %sstatistically significant at the .05 level:
-        %s
-        %s
-        We may %sreject the null-hypothesis of %s.
-        Note that this does not mean that the data provide evidence %s the null hypothesis
-        or provide evidence %s the alternative hypothesis for this test;
-        it also does not mean that the null hypothesis is %s to hold.",
-                test,
-                paste(levels, collapse = " and "),
-                significant_text,
-                format_test_result(test, test_data, options),
-                summaryEffect,
-                significant_text,
-                summNullHypo,
-                if(significant) "against" else "for",
-                if(significant) "for" else "against",
-                if(significant) "unlikely" else "likely")
-        test_summaries[test] <- test_summary
-    }
+      test_summary <- sprintf("For the %s test, the difference between %s is %sstatistically significant at the .05 level:
+      %s
+      %s
+      We may %sreject the null-hypothesis of %s.
+      Note that this does not mean that the data provide evidence %s the null hypothesis
+      or provide evidence %s the alternative hypothesis for this test;
+      it also does not mean that the null hypothesis is %s to hold.",
+              test,
+              paste(levels, collapse = " and "),
+              significant_text,
+              format_test_result(test, test_data, options),
+              summaryEffect,
+              significant_text,
+              summNullHypo,
+              if(significant) "against" else "for",
+              if(significant) "for" else "against",
+              if(significant) "unlikely" else "likely")
+      test_summaries[i] <- test_summary
+      }
 
     # Combine all summaries
     all_summaries <- paste(test_summaries, collapse = "\n\n")
