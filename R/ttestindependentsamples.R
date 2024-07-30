@@ -853,88 +853,77 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     text = gettextf("<h2>1. Executive Summary of the Default Analysis</h2>"))
   jaspResults[["summaryTitle"]] <- summaryTitle
 
-    # Helper functions
+  # Helper functions
+  round_mtr <- function(x) lapply(x, round, digits = 3)
 
-    format_test_result <- function(test_name, test_data, options) {
-        effSizeName <- switch(options$effectSizeType,
-                              "cohen" = "Cohen's d",
-                              "glass" = "Glass' delta",
-                              "hedges" = "Hedges' g")
+  format_test_result <- function(test_name, test_data, options) {
+      effSizeName <- switch(options$effectSizeType,
+                            "cohen" = "Cohen's d",
+                            "glass" = "Glass' delta",
+                            "hedges" = "Hedges' g")
 
-
-
+      if (test_name == "Mann-Whitney") {
         result <- paste0("p = ", test_data$p,
-                         ", t(", test_data$df, ") = ", test_data$Statistic)
+                         ", U(", test_data$df, ") = ", test_data$Statistic)
+      } else {result <- paste0("p = ", test_data$p,
+                       ", t(", test_data$df, ") = ", test_data$Statistic)}
+      return(result)
+  }
 
-        if (options$effectSize) {
-            result <- paste0(result, ", ", effSizeName, " = ", test_data$d)
+  # Main function body
+  mtr_rounded <- round_mtr(mtr)
+  groups <- options$group
+  dependent <- options$dependent
+  levels <- base::levels(dataset[[groups]])
 
-            if (options$effectSizeCi) {
-                result <- paste0(result, " [", test_data$lowerCIeffectSize,
-                                 ", ", test_data$upperCIeffectSize, "]")
-            }
-        }
+  # Convert the test selection to natural text form
+  test_type <- c("Student t-test", "Welch t-test", "Mann-Whitney U test")
+  user_selection <- c(options$student, options$welch, options$mannWhitneyU)
+  selected_tests <- test_type[user_selection]
+  tests_string <- if (length(selected_tests) == 1) {
+      selected_tests
+  } else if (length(selected_tests) == 2) {
+      paste(selected_tests, collapse = " and ")
+  } else {
+      paste(paste(selected_tests[-length(selected_tests)], collapse = ", "),
+            "and", selected_tests[length(selected_tests)])
+  }
 
-        return(result)
-    }
+  # Effect Size Text
+  summ_effectCi <- if (options$effectSizeCi) {
+      sprintf(" and a 95%% confidence interval ranging from %s to %s",
+              mtr_rounded$lowerCIeffectSize, mtr_rounded$upperCIeffectSize)
+  } else ""
 
-    # Main function body
-    mtr_rounded <- lapply(mtr, round, digits = 3)
-    groups <- options$group
-    dependent <- options$dependent
-    levels <- base::levels(dataset[[groups]])
+  summaryEffect <- if (options$effectSize) {
+      sprintf("The corresponding value for %s equals %s, with a standard error of %s%s.",
+              effSizeName, mtr_rounded$d, mtr_rounded$effectSizeSe, summ_effectCi)
+  } else ""
 
-    # Convert the test selection to natural text form
-    test_type <- c("Student t-test", "Welch t-test", "Mann-Whitney U test")
-    user_selection <- c(options$student, options$welch, options$mannWhitneyU)
-    selected_tests <- test_type[user_selection]
-    tests_string <- if (length(selected_tests) == 1) {
-        selected_tests
-    } else if (length(selected_tests) == 2) {
-        paste(selected_tests, collapse = " and ")
-    } else {
-        paste(paste(selected_tests[-length(selected_tests)], collapse = ", "),
-              "and", selected_tests[length(selected_tests)])
-    }
+  # Vovk-Sellke
+  summaryVovkSellke <- if (options$vovkSellke) {
+      vovkSellkeLevel <- if (mtr_rounded$VovkSellkeMPR > 10) {
+          ", which is substantial [EJ APPROVAL FOR TEXT]"
+      } else {
+          ", which is not compelling and urges caution"
+      }
+      sprintf("The Vovk-Sellke maximum p-Ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
+              mtr_rounded$VovkSellkeMPR, vovkSellkeLevel)
+  } else ""
 
-    # Effect Size Text
-    summ_effectCi <- if (options$effectSizeCi) {
-        sprintf(" and a 95% confidence interval ranging from %s to %s",
-                mtr_rounded$lowerCIeffectSize, mtr_rounded$upperCIeffectSize)
-    } else ""
+  # Alternative Hypothesis
+  summNullHypo <- switch(options$alternative,
+                         "twoSided" = "no population difference between the groups",
+                         "greater" = sprintf("the %s population being equal or greater than the %s population", levels[2], levels[1]),
+                         "less" = sprintf("the %s population being equal or lesser than the %s population", levels[2], levels[1]))
 
-    summaryEffect <- if (options$effectSize) {
-        sprintf("The corresponding value for %s equals %s, with a standard error of %s%s.",
-                effSizeName, mtr_rounded$d, mtr_rounded$effectSizeSe, summ_effectCi)
-    } else ""
-
-    # Vovk-Sellke
-    summaryVovkSellke <- if (options$vovkSellke) {
-        vovkSellkeLevel <- if (mtr_rounded$VovkSellkeMPR > 10) {
-            ", which is substantial [EJ APPROVAL FOR TEXT]"
-        } else {
-            ", which is not compelling and urges caution"
-        }
-        sprintf("The Vovk-Sellke maximum p-Ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
-                mtr_rounded$VovkSellkeMPR, vovkSellkeLevel)
-    } else ""
-
-    # Alternative Hypothesis
-    summNullHypo <- switch(options$alternative,
-                           "twoSided" = "no population difference between the groups",
-                           "greater" = sprintf("the %s population being equal or greater than the %s population", levels[2], levels[1]),
-                           "less" = sprintf("the %s population being equal or lesser than the %s population", levels[2], levels[1]))
-
-    # Create individual summaries for each test
-    test_summaries <- c()
-    for (i in 1:length(optionsList$whichTests)) {
-      test <- row.names(mtr_rounded)[i]
-      test_data <- mtr_rounded[test,]
+  # Create individual summaries for each test
+  test_summaries <- lapply(row.names(mtr), function(test) {
+      test_data <- round_mtr(mtr[test,])
       significant <- test_data$p < 0.05
       significant_text <- if(significant) "" else "not "
 
-      test_summary <- sprintf("For the %s test, the difference between %s is %sstatistically significant at the .05 level:
-      %s
+      sprintf("For the %s test, the difference between %s is %sstatistically significant at the .05 level: %s
       %s
       We may %sreject the null-hypothesis of %s.
       Note that this does not mean that the data provide evidence %s the null hypothesis
@@ -950,32 +939,31 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
               if(significant) "against" else "for",
               if(significant) "for" else "against",
               if(significant) "unlikely" else "likely")
-      test_summaries[i] <- test_summary
-      }
+  })
 
-    # Combine all summaries
-    all_summaries <- paste(test_summaries, collapse = "\n\n")
+  # Combine all summaries
+  all_summaries <- paste(test_summaries, collapse = "\n\n")
 
-    # Create the overall summary text
-    text <- sprintf("The table above summarizes the outcome of the %s.
-  The dependent variable is %s, and the grouping variable is %s with levels %s.
-  The difference in the two sample means is %s, with a standard error of %s.
+  # Create the overall summary text
+  text <- sprintf("The table above summarizes the outcome of the %s.
+    The dependent variable is %s, and the grouping variable is %s with levels %s.
+    The difference in the two sample means is %s, with a standard error of %s.
 
-  %s
+    %s
 
-  These results also do not identify a likely range of values for effect size.
-  In order to address these questions, a Bayesian analysis would be needed.
+    These results also do not identify a likely range of values for effect size.
+    In order to address these questions, a Bayesian analysis would be needed.
 
-  %s",
-                    tests_string,
-                    dependent,
-                    groups,
-                    paste(levels, collapse = " and "),
-                    mtr_rounded$md,
-                    mtr_rounded$sed,
-                    all_summaries,
-                    summaryVovkSellke
-                    )
+    %s",
+                  tests_string,
+                  dependent,
+                  groups,
+                  paste(levels, collapse = " and "),
+                  mtr_rounded$md,
+                  mtr_rounded$sed,
+                  all_summaries,
+                  summaryVovkSellke
+                  )
 
   summaryText <- createJaspHtml(
       text <- gettextf("%1$s", text)
