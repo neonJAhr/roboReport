@@ -42,6 +42,7 @@ TTestIndependentSamplesInternal <- function(jaspResults, dataset = NULL, options
   .ttestAssumptionsText(jaspResults, dataset, options, ready, type)
   .ttestParametersText(jaspResults, dataset, options, ready, type)
   .ttestHypothesisText(jaspResults, dataset, options, ready, type)
+  .ttestReferences(jaspResults, dataset, options, ready, type)
 
   return()
 }
@@ -433,13 +434,9 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 .ttestIndependentNormalFill <- function(jaspResults, table, dataset, options) {
   ## for a independent t-test, we need to check both group vectors for normality
 
-  normTableData <- data.frame(dep = character(),
-                              lev = character(),
-                              W = numeric(),
-                              p = numeric(),
-                              stringsAsFactors = FALSE)
+  normTableData <- data.frame()
   normTableResults <- createJaspState()
-  jaspResults[["normTableData"]] <- normTableResults
+  jaspResults[["normTableResults"]] <- normTableResults
   variables <- options$dependent
   factor    <- options$group
   levels    <- levels(dataset[[factor]])
@@ -1025,107 +1022,115 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
 .ttestAssumptionsText <- function(jaspResults, dataset, options, ready, type) {
 
-    if (!options$roboReport || !options$textAssumptions)
-        return()
-    if (!options$normalityTest && !options$equalityOfVariancesTest)
-        return()
-    optionsList <- .ttestOptionsList(options, type)
+  if (!options$roboReport || !options$textAssumptions)
+      return()
+  if (!options$normalityTest && !options$equalityOfVariancesTest)
+      return()
+  optionsList <- .ttestOptionsList(options, type)
 
-    # Does not contain anything currently
-    norm_obj <- jaspResults[["normTableResults"]]$object
-    norm <- as.data.frame(norm_obj)
-    norm <- round(norm, 3)
+  # Does not contain anything currently
+  norm_obj <- jaspResults[["normTableResults"]]$object
+  norm <- as.data.frame(norm_obj)
 
-    eqvar_obj <- jaspResults[["eqvarTableResults"]]$object
-    eqvar <- as.data.frame(eqvar_obj, row.names = options$dependent)
-    eqvar <- round(eqvar, 3)
-    # copied from above to use as conditional variable
-    nameOfEqVarTest <- switch(options$equalityOfVariancesTestType,
-                              "brownForsythe" = gettext("Brown-Forsythe"),
-                              "levene" = gettext("Levene's"))
-    nameOfEqVarTest <- ifelse(options$equalityOfVariancesTestType == "brownForsythe",
-                              "brownForsythe",
-                              "levene")
-    eqvar_sig <- ifelse(eqvar$p > 0.05, "not", "")
-    eqvar_rej <- ifelse(eqvar$p > 0.05, "reject", "retain")
+  eqvar_obj <- jaspResults[["eqvarTableResults"]]$object
+  eqvar <- as.data.frame(eqvar_obj, row.names = options$dependent)
+  eqvar <- round(eqvar, 3)
+  # copied from above to use as conditional variable
+  nameOfEqVarTest <- switch(options$equalityOfVariancesTestType,
+                            "brownForsythe" = gettext("Brown-Forsythe"),
+                            "levene" = gettext("Levene's"))
+  nameOfEqVarTest <- ifelse(options$equalityOfVariancesTestType == "brownForsythe",
+                            "brownForsythe",
+                            "levene")
+  eqvar_sig <- ifelse(eqvar$p > 0.05, "not", "")
+  eqvar_rej <- ifelse(eqvar$p > 0.05, "reject", "retain")
 
-    groups    <- options$group
+  groups    <- options$group
 
-    levels <- base::levels(dataset[[ groups ]])
-    # norm_sig <- ifelse(norm_df["p"] > 0.05, "not", "")
+  levels <- base::levels(dataset[[ groups ]])
+  # norm_sig <- ifelse(norm_df["p"] > 0.05, "not", "")
 
-    if (options$normalityTest)
-        normalityText <- gettextf("For group = <b>%1$s</b>, the Shapiro-Wilk test for normality is %2$s
-            statistically significant at the .05 level (i.e., p = .6517),
-            and hence we can retain [fork: reject] the hypothesis that the data
-            for group = <b>%1$s</b> are normally dsitributed. For group = <b>%2$s</b>,
-            the Shapiro-Wilk test for normality is not [fork: omit the 'not']
-            statistically significant at the .05 level (i.e., p = .7322), and
-            hence we can retain [fork: reject] the hypothesis that the data for
-            group = <b>%2$s</b> are normally dsitributed. [Note to Arne: in high-verbose
-            level, we ought to add the reference to Shapiro-Wilk] Note that when the
-            Shapiro-Wilk test is statistically nonsignificant this does not mean that
-            the assumption of normality is met, or that the data support that
-            assertion. Likewise, when the Shapiro-Wilk test is statistically
-            significant this does not mean that the data provide evidence for
-            the assertion that the data are not normally distributed. In order
-            to address these questions a Bayesian analysis would be needed.<br>",
-                                  levels[1], "not", levels[2])
-    else (normalityText <- "")
+  if (options$normalityTest) {
+    # Create individual summaries for each test
+    norm_summaries <- apply(norm, 1, function(row) {
+      significant <- as.numeric(row["p"]) < 0.05
+      sig_text <- if(significant) "" else "not "
+      norm_sig <- if(significant) "" else "not "
+      norm_rej <- if(significant) "reject" else "retain"
 
-    if (options$equalityOfVariancesTest && (nameOfEqVarTest == "brownForsythe"))
-        equalVarText <- gettextf("The Brown-Forsythe test for equality of variances is %1$s
-            statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
-            Hence we can %6$s the null hypothesis that the variances
-            in both groups are equal. Note that when the Brown-Forsythe test is
-            statistically nonsignificant, this does not mean that the assumption
-            of equal variance is met, or that the data support that assertion.
-            Likewise, when the Brown-Forsythe test is statistically significant,
-            this does not mean that the data provide evidence for the assertion
-            that groups have different variances. In order to address these
-            questions a Bayesian analysis would be needed.",
-            eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
-    # else (equalVarText <- "") # TODO: Replace this with Levene below
-    else if (options$equalityOfVariancesTest && (nameOfEqVarTest == "levene"))
+      sprintf("For group = <b>%s</b>, the Shapiro-Wilk test for normality is %s
+      statistically significant at the .05 level (i.e., p = %s),
+      and hence we %s the hypothesis that the data
+      for group = <b>%s</b> are normally distributed.",
+              row["lev"],
+              norm_sig,
+              round(as.numeric(row["p"]), 3),
+              if(significant) "must reject" else "can retain",
+              row["lev"])
+    })
+    all_summaries <- paste(norm_summaries, collapse = "\n")
+    normalityText <- gettextf("%1$s [Note to Arne: in high-verbose
+      level, we ought to add the reference to Shapiro-Wilk] Note that when the
+      Shapiro-Wilk test is statistically nonsignificant this does not mean that
+      the assumption of normality is met, or that the data support that
+      assertion. Likewise, when the Shapiro-Wilk test is statistically
+      significant this does not mean that the data provide evidence for
+      the assertion that the data are not normally distributed. In order
+      to address these questions a Bayesian analysis would be needed.<br>",
+                              all_summaries)
+  } else (normalityText <- "")
+
+  if (options$equalityOfVariancesTest && (nameOfEqVarTest == "brownForsythe"))
+    equalVarText <- gettextf("The Brown-Forsythe test for equality of variances is %1$s
+      statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
+      Hence we can %6$s the null hypothesis that the variances
+      in both groups are equal. Note that when the Brown-Forsythe test is
+      statistically nonsignificant, this does not mean that the assumption
+      of equal variance is met, or that the data support that assertion.
+      Likewise, when the Brown-Forsythe test is statistically significant,
+      this does not mean that the data provide evidence for the assertion
+      that groups have different variances. In order to address these
+      questions a Bayesian analysis would be needed.",
+      eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
+  # else (equalVarText <- "") # TODO: Replace this with Levene below
+  else if (options$equalityOfVariancesTest && (nameOfEqVarTest == "levene"))
     equalVarText <- gettextf("The Levene's test for equality of variances is %1$s
-            statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
-            Hence we can %6$s the null hypothesis that the variances
-            in both groups are equal. Note that when Levene's test is
-            statistically nonsignificant this does not mean that the assumption
-            of equal variance is met, or that the data support that assertion.
-            Likewise, when the Levene's test is statistically significant
-            this does not mean that the data provide evidence for the assertion
-            that groups have different variances. In order to address these
-            questions a Bayesian analysis would be needed.",
-            eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
-    else (equalVarText <- "")
+      statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
+      Hence we can %6$s the null hypothesis that the variances
+      in both groups are equal. Note that when Levene's test is
+      statistically nonsignificant this does not mean that the assumption
+      of equal variance is met, or that the data support that assertion.
+      Likewise, when the Levene's test is statistically significant
+      this does not mean that the data provide evidence for the assertion
+      that groups have different variances. In order to address these
+      questions a Bayesian analysis would be needed.",
+      eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
+  else (equalVarText <- "")
 
-    assumptionsText <- createJaspHtml(
-        text = gettextf("<h2>3. Assumption Checks</h2>
-            %1$s
-            INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
-            %2$s",
-                        normalityText, equalVarText))
-    assumptionsText$dependOn(c("dependent", "group", "normalityTest",
-                               "equalityOfVariancesTest", "textAssumptions"))
-    jaspResults[["assumptionsText"]] <- assumptionsText
+  assumptionsText <- createJaspHtml(
+    text = gettextf("<h2>3. Assumption Checks</h2>
+      %1$s
+      INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
+      %2$s",
+      normalityText, equalVarText))
+  assumptionsText$dependOn(c("dependent", "group", "normalityTest",
+                             "equalityOfVariancesTest", "textAssumptions"))
+  jaspResults[["assumptionsText"]] <- assumptionsText
 
+  # Placeholder text TODO REMOVE
+  testingText <- createJaspHtml(
+    text = gettextf("<h2>Placeholder to print variables</h2>
+                      %1$s <p> %2$s <p>---<p> %3$s <p> %4$s <p>
+                    ---<p> %5$s <p> %6$s",
+                    paste(names(options), collapse = "; "),
+                    paste(options, collapse = "; "),
+                    paste(length(norm_obj), collapse = " "),
+                    paste(names(norm), collapse = "; "),
+                    paste(dim(eqvar), collapse = " "),
+                    paste(names(eqvar), collapse = "; ")
 
-    # Placeholder text TODO REMOVE
-    testingText <- createJaspHtml(
-      text = gettextf("<h2>Placeholder to print variables</h2>
-                        %1$s <p> %2$s <p>---<p> %3$s <p> %4$s <p>
-                      ---<p> %5$s <p> %6$s",
-                      paste(names(options), collapse = "; "),
-                      paste(options, collapse = "; "),
-                      paste(length(norm_obj), collapse = " "),
-                      paste(names(norm), collapse = "; "),
-                      paste(dim(eqvar), collapse = " "),
-                      paste(names(eqvar), collapse = "; ")
-
-      ))
-
-    jaspResults[["testingText"]] <- testingText
+    ))
+  jaspResults[["testingText"]] <- testingText
 }
 
 .ttestParametersText <- function(jaspResults, dataset, options, ready, type) {
@@ -1184,93 +1189,115 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 }
 
 .ttestHypothesisText <- function(jaspResults, dataset, options, ready, type) {
-  if (!is.null(jaspResults[["hypothesisText"]]))
-    return()
   if (!options$roboReport)
     return()
-  hypothesisTitle <- createJaspHtml("")
+  hypothesisTitle <- createJaspHtml("<h2>5. Hypothesis Testing: Is The Effect Absent?</h2>")
   hypothesisTitle$dependOn(c("student", "welch", "mannWhitneyU", "group", "dependent", "roboReport"))
 
   optionsList <- .ttestOptionsList(options, type)
   groups    <- options$group
   levels <- base::levels(dataset[[ groups ]])
 
-  mtr <- jaspResults[["mainTableResults"]]$object
-  # INSERT Commenting out ttest to see if it can be done without
-  # ttest <- jaspResults[["mainTableTtest"]]$object
+  mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
+  mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
 
-  # # Order of items: df, p, Location Parameter, Effect Size, CI LocPar Lo,
-  # # CI LocPar Up, CI Eff Lo, CI Eff Up, SE Eff, SE Diff, Statistic, VS-MPR
-  # # mtr["d"] <- NULL
-  # mtr_rounded <- lapply(mtr, round, digits = 3)
-  # significant <- ifelse(mtr["p"] > 0.05, "not", "")
-  #
-  # test_type <- c("standard t-", "Welch t-", "Mann-Whitney U")
-  # hypothesisTitle <- createJaspHtml(
-  #   text = gettextf("<h2>5. Hypothesis Testing: Is The Effect Absent?</h2>"))
-  #
-  # jaspResults[["hypothesisTitle"]] <- hypothesisTitle
-  #
-  # if (optionsList$wantsStudents) {
-  #   hypothesisStudent <- createJaspHtml(
-  #     text = gettextf("
-  #       For the %7$stest, the group difference is %3$s
-  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-  #       We may %3$s reject the null-hypothesis of no population
-  #       difference between the groups. [NB. this needs to be adjusted for a
-  #       one-sided test] <br>",
-  #                           levels[1], levels[2],
-  #                           significant,  mtr_rounded["p"],
-  #                           mtr_rounded["df"],
-  #                           mtr_rounded["t"], "standard t-"))
-  #
-  #       jaspResults[["hypothesisStudent"]] <- hypothesisStudent
-  #   }
-  #
-  #   if (optionsList$wantsWilcox) {
-  #       hypothesisWilcox <- createJaspHtml(
-  #           text = gettextf("
-  #       For the %7$stest, the group difference is %3$s
-  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-  #       We may %3$s reject the null-hypothesis of no population
-  #       difference between the groups. [NB. this needs to be adjusted for a
-  #       one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
-  #       maximum possible odds in favor of H1 over H0, which is not compelling and
-  #       urges caution. [only include for odds lower than 10]<br>",
-  #                           levels[1], levels[2],
-  #                           significant,  mtr_rounded["p"],
-  #                           mtr_rounded["df"],
-  #                           mtr_rounded["t"], "Mann-Whitney U"))
-  #
-  #       jaspResults[["hypothesisText"]] <- hypothesisWilcox
-  #   }
-  #
-  #   if (optionsList$wantsWelchs) {
-  #       hypothesisWelch <- createJaspHtml(
-  #           text = gettextf("
-  #       For the %7$stest, the group difference is %3$s
-  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-  #       We may %3$s reject the null-hypothesis of no population
-  #       difference between the groups. [NB. this needs to be adjusted for a
-  #       one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
-  #       maximum possible odds in favor of H1 over H0, which is not compelling and
-  #       urges caution. [only include for odds lower than 10]<br>",
-  #                           levels[1], levels[2],
-  #                           significant,  mtr_rounded["p"],
-  #                           mtr_rounded["df"],
-  #                           mtr_rounded["t"], "Welch t-"))
-  #
-  #       jaspResults[["hypothesisWelch"]] <- hypothesisWelch
-  #   }
-  #
-  #   hypothesisPval <- createJaspHtml(
-  #       text = gettextf("The p-value does not quantify evidence for the null
-  #       hypothesis versus the alternative hypothesis; the p-value also cannot be
-  #       taken to mean that the null hypothesis is either likely or unlikely to
-  #       hold, or that the data are more or less likely to occur under the null
-  #       hypothesis than under the alternative hypothesis. In order to obtain this
-  #       information a Bayesian analysis would be needed."))
-  #
-  #   jaspResults[["hypothesisPval"]] <- hypothesisPval
+  mtr_rounded <- lapply(mtr, round, digits = 3)
+  significant <- mtr$p < 0.05
+  signif_text <- if(significant) "" else "not "
+
+  test_type <- c("standard t-", "Welch t-", "Mann-Whitney U")
+
+  jaspResults[["hypothesisTitle"]] <- hypothesisTitle
+
+  if (optionsList$wantsStudents) {
+    hypothesisStudent <- createJaspHtml(
+      text = gettextf("
+        For the %7$stest, the group difference is %3$s
+        statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
+        We may %3$s reject the null-hypothesis of no population
+        difference between the groups. [NB. this needs to be adjusted for a
+        one-sided test] <br>",
+                      levels[1], levels[2],
+                      signif_text,  mtr_rounded["p"],
+                      mtr_rounded["df"],
+                      mtr_rounded["t"], "standard t-"))
+
+    jaspResults[["hypothesisStudent"]] <- hypothesisStudent
+  }
+
+  if (optionsList$wantsWilcox) {
+    hypothesisWilcox <- createJaspHtml(
+      text = gettextf("
+        For the %7$stest, the group difference is %3$s
+        statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
+        We may %3$s reject the null-hypothesis of no population
+        difference between the groups. [NB. this needs to be adjusted for a
+        one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
+        maximum possible odds in favor of H1 over H0, which is not compelling and
+        urges caution. [only include for odds lower than 10]<br>",
+          levels[1], levels[2],
+          signif_text,  mtr_rounded["p"],
+          mtr_rounded["df"],
+          mtr_rounded["t"], "Mann-Whitney U"))
+
+    jaspResults[["hypothesisText"]] <- hypothesisWilcox
+  }
+
+  if (optionsList$wantsWelchs) {
+    hypothesisWelch <- createJaspHtml(
+      text = gettextf("
+        For the %7$stest, the group difference is %3$s
+        statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
+        We may %3$s reject the null-hypothesis of no population
+        difference between the groups. [NB. this needs to be adjusted for a
+        one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
+        maximum possible odds in favor of H1 over H0, which is not compelling and
+        urges caution. [only include for odds lower than 10]<br>",
+          levels[1], levels[2],
+          signif_text,  mtr_rounded["p"],
+          mtr_rounded["df"],
+          mtr_rounded["t"], "Welch t-"))
+
+    jaspResults[["hypothesisWelch"]] <- hypothesisWelch
+  }
+
+  hypothesisPval <- createJaspHtml(
+    text = gettextf("The p-value does not quantify evidence for the null
+    hypothesis versus the alternative hypothesis; the p-value also cannot be
+    taken to mean that the null hypothesis is either likely or unlikely to
+    hold, or that the data are more or less likely to occur under the null
+    hypothesis than under the alternative hypothesis. In order to obtain this
+    information a Bayesian analysis would be needed."))
+
+  jaspResults[["hypothesisPval"]] <- hypothesisPval
+}
+
+.ttestReferences <- function(jaspResults, dataset, options, ready, type) {
+  if (!options$roboReport)
+    return()
+
+  references <- createJaspHtml(
+    text = gettextf("<h2>6. Further Information</h2>
+    <h5>Mann-Whitney Non-Parametric Test / Wilcoxon Rank Sum</h5>
+    Mann, H. B., & Whitney, D. R. (1947). On a test of whether one of two random variables is stochastically larger than the other. Annals of Mathematical Statistics, 18, 50–60.
+
+    <h5>Shapiro-Wilk Normality Test</h5>
+    Shapiro, S.S. and Wilk, M.B. (1965) An Analysis of Variance Test for Normality (Complete Samples). Biometrika, 52, 591-611. https://doi.org/10.1093/biomet/52.3-4.591
+
+    <h5>Levene's test</h5>
+    Levene, H. (1960) Robust Tests for Equality of Variances. In: Olkin, I., Ed., Contributions to Probability and Statistics, Stanford University Press, Palo Alto, 278-292.
+
+    <h5>Raincloud Plot</h5>
+    Allen, M., Poggiali, D., Whitaker, K., Marshall, T. R., & Kievit, R. A. (2019). Raincloud plots: a multi-platform tool for robust data visualization. Wellcome open research, 4, 63. https://doi.org/10.12688/wellcomeopenres.15191.1
+
+
+    <h5>Student's t-test</h5>
+    'Student' Gosset, W.G. (1908). The probable error of a mean. Biometrika. 6 (1): 1–25. doi:10.1093/biomet/6.1.1. hdl:10338.dmlcz/143545.
+
+    <h5>Welch's t-test</h5>
+    Welch, B. L. (1947). The generalization of 'Student's' problem when several different population variances are involved. Biometrika. 34 (1–2): 28–35. doi:10.1093/biomet/34.1-2.28"
+                    )
+  )
+  jaspResults[["references"]] <- references
 }
 ##### END AUTO-STAT ____________________________________________________________
