@@ -24,22 +24,21 @@ TTestIndependentSamplesInternal <- function(jaspResults, dataset = NULL, options
     dataset <- .ttestReadData(dataset, options, type)
     .ttestCheckErrors(        dataset, options, type)
   }
-  # Auto-Stat Introduction
-  .ttestIndependentIntroText(jaspResults, dataset, options, ready, type)
   # Output tables (each calls its own results function)
   .ttestIndependentMainTable(  jaspResults, dataset, options, ready, type)
-  .ttestIndependentSummaryText(jaspResults, dataset, options, ready, type)
   .ttestIndependentNormalTable(jaspResults, dataset, options, ready, type)
   .ttestQQPlot(                jaspResults, dataset, options, ready, type)
   .ttestIndependentEqVarTable( jaspResults, dataset, options, ready, type)
   # Descriptives
-  .ttestDescriptivesText(jaspResults, dataset, options, ready, type)
   .ttestIndependentDescriptivesTable(        jaspResults, dataset, options, ready)
   .ttestIndependentDescriptivesPlot(         jaspResults, dataset, options, ready)
   .ttestIndependentDescriptivesRainCloudPlot(jaspResults, dataset, options, ready)
   .ttestIndependentDescriptivesBarPlot(      jaspResults, dataset, options, ready)
   .ttestIndependentDescriptivesRainCloudPlot(jaspResults, dataset, options, ready)
-  # Auto-Stat Texts
+  # RoboReport Texts
+  .ttestIndependentIntroText(jaspResults, dataset, options, ready, type)
+  .ttestIndependentSummaryText(jaspResults, dataset, options, ready, type)
+  .ttestDescriptivesText(jaspResults, dataset, options, ready, type)
   .ttestAssumptionsText(jaspResults, dataset, options, ready, type)
   .ttestParametersText(jaspResults, dataset, options, ready, type)
   .ttestHypothesisText(jaspResults, dataset, options, ready, type)
@@ -432,57 +431,56 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 # TODO Remove next line
 ##### Other Tables Fill ----
 .ttestIndependentNormalFill <- function(jaspResults, table, dataset, options) {
-    ## for a independent t-test, we need to check both group vectors for normality
+  ## for a independent t-test, we need to check both group vectors for normality
 
-    normTableData <- data.frame(dep = character(),
-                                lev = character(),
-                                .isNewGroup = logical(),
-                                W = numeric(),
-                                p = numeric()
-                                )
-    normTableResults <- createJaspState()
-    jaspResults[["normTableData"]] <- normTableResults
-    # normTableResults$dependOn(c("dependent", "group", "roboReport"))
-    # TODO figure out if needed
+  normTableData <- data.frame(dep = character(),
+                              lev = character(),
+                              W = numeric(),
+                              p = numeric(),
+                              stringsAsFactors = FALSE)
+  normTableResults <- createJaspState()
+  jaspResults[["normTableData"]] <- normTableResults
+  variables <- options$dependent
+  factor    <- options$group
+  levels    <- levels(dataset[[factor]])
 
-    variables <- options$dependent
-    factor    <- options$group
-    levels    <- levels(dataset[[factor]])
+  for (variable in variables) {
+    ## there will be two levels, otherwise .hasErrors will quit
+    for (level in levels) {
 
-    for (variable in variables) {
-        ## there will be two levels, otherwise .hasErrors will quit
-        for (level in levels) {
+      row     <- list(dep = variable, lev = level, .isNewGroup = (level == levels[1]))
+      rowName <- paste(variable, level, sep = "-")
 
-            row     <- list(dep = variable, lev = level, .isNewGroup = (level == levels[1]))
-            rowName <- paste(variable, level, sep = "-")
+      errors <- .hasErrors(dataset,
+                           message = 'short',
+                           type = c('observations', 'variance', 'infinity'),
+                           all.target = variable,
+                           observations.amount = c('< 3', '> 5000'),
+                           all.grouping = factor,
+                           all.groupingLevel = level)
 
-            errors <- .hasErrors(dataset,
-                                 message = 'short',
-                                 type = c('observations', 'variance', 'infinity'),
-                                 all.target = variable,
-                                 observations.amount = c('< 3', '> 5000'),
-                                 all.grouping = factor,
-                                 all.groupingLevel = level)
+      if (!identical(errors, FALSE)) {
+        row[["W"]] <- NaN
+        table$addFootnote(errors$message, colNames = "W", rowNames = rowName)
+      } else {
+        ## get the dependent variable at a certain factor level
+        data <- na.omit(dataset[[variable]][dataset[[factor]] == level])
+        r <- stats::shapiro.test(data)
+        row[["W"]] <- as.numeric(r$statistic)
+        row[["p"]] <- r$p.value
+      }
+      normTableData <- rbind(normTableData, data.frame(
+        dep = variable,
+        lev = level,
+        W = row[["W"]],
+        p = row[["p"]],
+        stringsAsFactors = FALSE
+      ))
 
-            if (!identical(errors, FALSE)) {
-                row[["W"]] <- NaN
-                table$addFootnote(errors$message, colNames = "W", rowNames = rowName)
-            } else {
-                ## get the dependent variable at a certain factor level
-                data <- na.omit(dataset[[variable]][dataset[[factor]] == level])
-                r <- stats::shapiro.test(data)
-                row[["W"]] <- as.numeric(r$statistic)
-                row[["p"]] <- r$p.value
-
-                # this is copying the syntax from mainTableFill to more easily save as a JaspState
-                row_state <- c(row = row, level = level)
-            }
-            # normTableData <- rbind.data.frame(normTableData, as.data.frame(row))
-
-            table$addRows(row, rowNames = rowName)
-        }
+      table$addRows(row, rowNames = rowName)
     }
-    normTableResults$object <- normTableData
+  }
+  normTableResults$object <- normTableData
 }
 
 .ttestIndependentEqVarFill <- function(jaspResults, table, dataset, options) {
@@ -520,6 +518,9 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
       errorMessage <- errors$message
     }
 
+    # Fill the df with the data generated to capture the tests row-wise per variable
+    eqvarTableData <- rbind(eqvarTableData,do.call(cbind,result[["row"]]))
+
     if (!is.null(errorMessage)) {
       row[["fStat"]] <- NaN
       table$addFootnote(errorMessage, colNames = "fStat", rowNames = variable)
@@ -528,8 +529,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
     table$addRows(row, rowNames = variable)
 
-    # Fill the df with the data generated to capture the tests row-wise per variable
-    # eqvarTableData <- rbind(eqvarTableData,do.call(cbind,row))
   }
   eqvarTableResults$object <- eqvarTableData
 }
@@ -973,18 +972,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
                          "effectSize", "effectSizeCI"))
 
   jaspResults[["summaryText"]] <- summaryText
-
-    # Placeholder text TODO REMOVE
-    summaryTest <- createJaspHtml(
-        text = gettextf("<h2>Placeholder to print variables</h2>
-                        %1$s <p> %2$s <p>---<p> %3$s <p> %4$s",
-                        paste(names(options), collapse = "; "),
-                        paste(options, collapse = "; "),
-                        paste(rownames(mtr), collapse = " "),
-                        paste(names(mtr), collapse = " ")
-        ))
-
-    jaspResults[["summaryTest"]] <- summaryTest
 }
 
 .ttestDescriptivesText <- function(jaspResults, dataset, options, ready, type) {
@@ -1037,19 +1024,21 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 }
 
 .ttestAssumptionsText <- function(jaspResults, dataset, options, ready, type) {
-    # if (!is.null(jaspResults[["assumptionsText"]]))
-    #     return()
+
     if (!options$roboReport || !options$textAssumptions)
         return()
     if (!options$normalityTest && !options$equalityOfVariancesTest)
         return()
     optionsList <- .ttestOptionsList(options, type)
 
-    # load the saved jaspState with the eqvar df
     # Does not contain anything currently
-    norm_df <- jaspResults[["normTableResults"]]$object
-    eqvar <- jaspResults[["eqvarTableResults"]]$object
+    norm_obj <- jaspResults[["normTableResults"]]$object
+    norm <- as.data.frame(norm_obj)
+    norm <- round(norm, 3)
 
+    eqvar_obj <- jaspResults[["eqvarTableResults"]]$object
+    eqvar <- as.data.frame(eqvar_obj, row.names = options$dependent)
+    eqvar <- round(eqvar, 3)
     # copied from above to use as conditional variable
     nameOfEqVarTest <- switch(options$equalityOfVariancesTestType,
                               "brownForsythe" = gettext("Brown-Forsythe"),
@@ -1057,7 +1046,8 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     nameOfEqVarTest <- ifelse(options$equalityOfVariancesTestType == "brownForsythe",
                               "brownForsythe",
                               "levene")
-    eqvar_sig <- ifelse(eqvar["p"] > 0.05, "not", "")
+    eqvar_sig <- ifelse(eqvar$p > 0.05, "not", "")
+    eqvar_rej <- ifelse(eqvar$p > 0.05, "reject", "retain")
 
     groups    <- options$group
 
@@ -1065,7 +1055,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     # norm_sig <- ifelse(norm_df["p"] > 0.05, "not", "")
 
     if (options$normalityTest)
-        normalityText <- gettextf("For group = <b>%1$s</b>, the Shapiro-Wilk test for normality is not [fork: omit the 'not']
+        normalityText <- gettextf("For group = <b>%1$s</b>, the Shapiro-Wilk test for normality is %2$s
             statistically significant at the .05 level (i.e., p = .6517),
             and hence we can retain [fork: reject] the hypothesis that the data
             for group = <b>%1$s</b> are normally dsitributed. For group = <b>%2$s</b>,
@@ -1080,32 +1070,34 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
             significant this does not mean that the data provide evidence for
             the assertion that the data are not normally distributed. In order
             to address these questions a Bayesian analysis would be needed.<br>",
-                                  levels[1], levels[2])
+                                  levels[1], "not", levels[2])
     else (normalityText <- "")
 
     if (options$equalityOfVariancesTest && (nameOfEqVarTest == "brownForsythe"))
         equalVarText <- gettextf("The Brown-Forsythe test for equality of variances is %1$s
-            statistically significant at the .05 level: F(1,42) = 2.3418, p = .1334.
-            Hence we can retain [fork: reject] the null hypothesis that the variances
+            statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
+            Hence we can %6$s the null hypothesis that the variances
             in both groups are equal. Note that when the Brown-Forsythe test is
-            statistically nonsignificant this does not mean that the assumption
+            statistically nonsignificant, this does not mean that the assumption
             of equal variance is met, or that the data support that assertion.
-            Likewise, when the Brown-Forsythe test is statistically significant
+            Likewise, when the Brown-Forsythe test is statistically significant,
             this does not mean that the data provide evidence for the assertion
             that groups have different variances. In order to address these
-            questions a Bayesian analysis would be needed.", eqvar_sig)
+            questions a Bayesian analysis would be needed.",
+            eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
     # else (equalVarText <- "") # TODO: Replace this with Levene below
     else if (options$equalityOfVariancesTest && (nameOfEqVarTest == "levene"))
-    equalVarText <- gettextf("The Levene's test for equality of variances is not [fork: omit the 'not']
-            statistically significant at the .05 level: F(1,42) = 2.3418, p = .1334.
-            Hence we can retain [fork: reject] the null hypothesis that the variances
+    equalVarText <- gettextf("The Levene's test for equality of variances is %1$s
+            statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
+            Hence we can %6$s the null hypothesis that the variances
             in both groups are equal. Note that when Levene's test is
             statistically nonsignificant this does not mean that the assumption
             of equal variance is met, or that the data support that assertion.
             Likewise, when the Levene's test is statistically significant
             this does not mean that the data provide evidence for the assertion
             that groups have different variances. In order to address these
-            questions a Bayesian analysis would be needed.")
+            questions a Bayesian analysis would be needed.",
+            eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
     else (equalVarText <- "")
 
     assumptionsText <- createJaspHtml(
@@ -1113,9 +1105,27 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
             %1$s
             INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
             %2$s",
-                        normalityText, equalVarText)) #TODO Remove ""
-
+                        normalityText, equalVarText))
+    assumptionsText$dependOn(c("dependent", "group", "normalityTest",
+                               "equalityOfVariancesTest", "textAssumptions"))
     jaspResults[["assumptionsText"]] <- assumptionsText
+
+
+    # Placeholder text TODO REMOVE
+    testingText <- createJaspHtml(
+      text = gettextf("<h2>Placeholder to print variables</h2>
+                        %1$s <p> %2$s <p>---<p> %3$s <p> %4$s <p>
+                      ---<p> %5$s <p> %6$s",
+                      paste(names(options), collapse = "; "),
+                      paste(options, collapse = "; "),
+                      paste(length(norm_obj), collapse = " "),
+                      paste(names(norm), collapse = "; "),
+                      paste(dim(eqvar), collapse = " "),
+                      paste(names(eqvar), collapse = "; ")
+
+      ))
+
+    jaspResults[["testingText"]] <- testingText
 }
 
 .ttestParametersText <- function(jaspResults, dataset, options, ready, type) {
