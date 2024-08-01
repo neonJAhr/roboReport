@@ -285,7 +285,6 @@ TTestIndependentSamplesInternal <- function(jaspResults, dataset = NULL, options
       table$addRows(row, rowNames = rowName)
 	# SHOW programmers
       mainTableData <- rbind(mainTableData,do.call(cbind,result[["row"]]))
-      rownames(mainTableData[nrow(mainTableData),]) <- rowName
     }
 
     if (effSize == "glass") {
@@ -581,10 +580,15 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   container[["table"]] <- ttestDescriptivesTable
 
   if(ready)
-    .ttestIndependentDescriptivesFill(ttestDescriptivesTable, dataset, options)
+    .ttestIndependentDescriptivesFill(jaspResults, ttestDescriptivesTable, dataset, options)
 }
 
-.ttestIndependentDescriptivesFill <- function(table, dataset, options) {
+.ttestIndependentDescriptivesFill <- function(jaspResults, table, dataset, options) {
+  # Initialize objects for JaspState
+  descTableData <- data.frame()
+  descTableResults <- createJaspState()
+  jaspResults[["descTableResults"]] <- descTableResults
+
   variables <- options$dependent
   groups <- options$group
   levels <- base::levels(dataset[[ groups ]])
@@ -624,10 +628,11 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
         n   <- length(groupDataOm)
         row <- c(row, list(n = n))
       }
-
+      descTableData <- rbind(descTableData,do.call(cbind,row))
       table$addRows(row)
     }
   }
+  descTableResults$object <- descTableData
 }
 
 .ttestIndependentDescriptivesPlot <- function(jaspResults, dataset, options, ready) {
@@ -971,52 +976,88 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 }
 
 .ttestDescriptivesText <- function(jaspResults, dataset, options, ready, type) {
-    if (!options$roboReport || !options$descriptives)
-        return()
+  if (!options$roboReport || !options$descriptives)
+    return()
+  if (is.null(options$dependent) || is.null(options$group)) {
+    errorText <- createJaspHtml(
+      text = gettextf("Please select a dependent and a grouping variable."))
+    errorText$dependOn(c("dependent", "group"))
+    jaspResults[["errorText"]] <- errorText
+  }
+  optionsList <- .ttestOptionsList(options, type)
 
-    # Variables
-    groups    <- options$group
-    levels <- base::levels(dataset[[ groups ]])
-    dependent <- options$dependent
+  # Variables
+  desc_obj <- jaspResults[["descTableResults"]]$object
+  desc <- as.data.frame(desc_obj)
+  mtr_obj <- jaspResults[["mainTableResults"]]$object
+  mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
 
-    # Descriptives Title
-    descripTitle <- createJaspHtml(
-        text = gettextf("<h2>2. Descriptives</h2>"))
-    jaspResults[["descripTitle"]] <- descripTitle
+  groups    <- options$group
+  levels <- base::levels(dataset[[ groups ]])
+  dependent <- options$dependent
 
-    # Text Raincloud Plot
-    if (options$raincloudPlot)
-        descripRainPlot <- ", followed by a raincloud plot that shows the individual observations"
-    else descripRainPlot <- ""
+  # Descriptives Title
+  descripTitle <- createJaspHtml(
+    text = gettextf("<h2>2. Descriptives</h2>"))
+  jaspResults[["descripTitle"]] <- descripTitle
+  descripTitle$dependOn(c("dependent", "group", "descriptives",
+                          "raincloudPlot"))
 
-    # Final output text
-    descriptivesText <- createJaspHtml(
-        text = gettextf("
-            The table below summarizes the observed data for each group separately %1$s.<br>
-            INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
-            As can be seen from the table, group = <b>%1$s</b> contains 21 observations
-            and has a mean <b>%3$s</b> of 51.4762 with a standard deviation of 11.0074;
-            group = <b>%2$s</b> contains 23 observations and has a mean <b>%3$s</b> of 41.5217
-            with a standard deviation of 17.1487. The observed mean <b>%3$s</b> in group = <b>%1$s</b>
-            is higher than the observed mean <b>%3$s</b> in group = <b>%2$s</b>.
-            This difference is [fork: is not] statistically significant at the .05 level:
-            p=.0286, t(42) = -2.2666. We may reject [fork: may not reject] the null-hypothesis
-            of no population difference between the groups. [NB. this needs to be adjusted for
-            a one-sided test] Note that this does not mean that the data provide evidence
-            against [fork: for] the null hypothesis or provide evidence for [fork: against]
-            the alternative hypothesis; it also does not mean that the null hypothesis is
-            unlikely [fork: likely] to hold. These results also do not identify a likely
-            range of values for effect size. In order to address these questions a Bayesian
-            analysis would be needed. The Vovk-Sellke maximum p-Ratio of 3.6162 indicates
-            the maximum possible odds in favor of H1 over H0, which is not compelling and
-            urges caution. [only include for odds lower than 10] [Note to Arne: these last
-            sentences would clearly be part of a verbose report] [Note to Arne: we could
-            also include a mention of whether the assumptions appear violated, and what
-            a nonparametric test shows]",
-            descripRainPlot,
-            levels[1], levels[2], dependent))
+  # Text Raincloud Plot
+  if (options$raincloudPlot)
+    descripRainPlot <- ", followed by a raincloud plot that shows the individual observations"
+  else descripRainPlot <- ""
 
-    jaspResults[["descriptivesText"]] <- descriptivesText
+  indiv_desc <- apply(desc, 1, function(row) {
+    sig_text <- if(significant) "" else "not "
+    norm_sig <- if(significant) "" else "not "
+    norm_rej <- if(significant) "reject" else "retain"
+
+    sprintf("group = <b>%1$s</b> contains %2$s observations
+      and has a mean <b>%3$s</b> of %4$s with a standard deviation of %5$s",
+            row["group"],
+            row["N"],
+            row["variable"],
+            round(as.numeric(row["mean"]), 3),
+            round(as.numeric(row["se"]), 3))
+  })
+  base_desc <- paste(indiv_desc, collapse = ";\n")
+  # Final output text
+  descriptivesText <- createJaspHtml(
+    text = gettextf("
+      The table below summarizes the observed data for each group separately %1$s.<br>
+      INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
+      As can be seen from the table, %2$s. The observed mean <b>%3$s</b> in group = <b>%4$s</b>
+      is higher than the observed mean <b>%3$s</b> in group = <b>%5$s</b>.
+      This difference is [fork: is not] statistically significant at the .05 level:
+      p=.0286, t(42) = -2.2666. We may reject [fork: may not reject] the null-hypothesis
+      of no population difference between the groups. [NB. this needs to be adjusted for
+      a one-sided test] Note that this does not mean that the data provide evidence
+      against [fork: for] the null hypothesis or provide evidence for [fork: against]
+      the alternative hypothesis; it also does not mean that the null hypothesis is
+      unlikely [fork: likely] to hold. These results also do not identify a likely
+      range of values for effect size. In order to address these questions a Bayesian
+      analysis would be needed. The Vovk-Sellke maximum p-Ratio of 3.6162 indicates
+      the maximum possible odds in favor of H1 over H0, which is not compelling and
+      urges caution. [only include for odds lower than 10] [Note to Arne: these last
+      sentences would clearly be part of a verbose report] [Note to Arne: we could
+      also include a mention of whether the assumptions appear violated, and what
+      a nonparametric test shows]",
+      descripRainPlot, base_desc, desc[1,"variable"],
+      levels[1], levels[2]))
+  # Placeholder text TODO REMOVE
+  testingText <- createJaspHtml(
+    text = gettextf("<h2>Placeholder to print variables</h2>
+                      %1$s <p> %2$s <p>---<p> %3$s <p> %4$s",
+                    paste(names(options), collapse = "; "),
+                    paste(options, collapse = "; "),
+                    paste(length(desc_obj), collapse = " "),
+                    paste(names(desc), collapse = "; ")
+
+    ))
+  jaspResults[["testingText"]] <- testingText
+
+  jaspResults[["descriptivesText"]] <- descriptivesText
 }
 
 .ttestAssumptionsText <- function(jaspResults, dataset, options, ready, type) {
@@ -1118,142 +1159,142 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 }
 
 .ttestParametersText <- function(jaspResults, dataset, options, ready, type) {
-    if (!is.null(jaspResults[["parametersText"]]))
-        return()
-    if (!options$roboReport)
-        return()
-
-    groups    <- options$group
-    levels <- base::levels(dataset[[ groups ]])
-
-
-    # EffectSize Type (adapted from .ttestIndependentMainTable)
-    if (options$effectSizeType == "cohen")
-        effSizeName <- "Cohen's d"
-    else if (options$effectSizeType == "glass")
-        effSizeName <- "Glass' delta"
-    else if (options$effectSizeType == "hedges")
-        effSizeName <- "Hedges' g"
-
-    parametersText <- createJaspHtml(
-        text = gettextf("<h2>4. Parameter Estimation: How Strong is the Effect?</h2>
-        As is apparent from the T-test table and the descriptive information,
-        the mean drp is observed to be higher for group=<b>%1$s</b> than for
-        group=<b>%2$s</b>. The location parameter equals the difference in the
-        two sample means (i.e., 9.9545), with a standard error of 4.3919.
-        The corresponding value for {effSizeName} equals -0.6841, with a standard
-        error of 0.3182 and a 95%% confidence  interval ranging from -1.2895 to
-        -0.0710. According to Cohen's classification scheme, the value of
-        -0.6841 corresponds to an observed effect that is 'medium to large'.
-        [note to Arne: we need to add a reference on this]<br>
-        The Brown-Forsythe test for equality of variances was not [fork: omit 'not']
-        significant at the .05 level, but we nevertheless [fork: and this is why we also]
-        report the results from the Welch test, which assumes that the variances in the
-        two groups are unequal. The location parameter in the Welch test equals
-        the difference in the two sample means and the associated standard error
-        is 4.3076. The corresponding value for {effSizeName} equals -0.6908, with a
-        standard error of 0.3185 and a 95%% confidence interval ranging from -1.2981
-        to -0.0750. According to Cohen's classification scheme, the value of
-        -0.6908 corresponds to an observed effect that is 'medium to large'.<br>
-        The Shapiro-Wilk test for normality was not [fork: omit 'not'] statistically
-        significant at the .05 level, but we nevertheless [fork: and this is why
-        we also] report the result from the Mann-Whitney test, which is based
-        only on the ranks of the observations; therefore, the Mann-Whitney test
-        is relatively robust. The Mann-Witney location parameter (i.e., the
-        Hodges-Lehmann estimate) equals -10.0001. The Mann-Whitney effect size
-        measure is the the rank biserial correlation; here it equals -0.4410,
-        with a standard error of 0.1744 and a 95%% confidence interval that
-        ranges from -0.6745 to -0.1274.<br>
-        For all estimates: the above confidence intervals do not identify a likely
-        range of values for effect size. In order to obtain this information a
-        Bayesian analysis would be needed (e.g., Morey et al., 2016;
-        van den Bergh, 2021).", levels[1], levels[2]))
-
-    jaspResults[["parametersText"]] <- parametersText
-}
-
-.ttestHypothesisText <- function(jaspResults, dataset, options, ready, type) {
+  if (!is.null(jaspResults[["parametersText"]]))
+    return()
   if (!options$roboReport)
     return()
-  hypothesisTitle <- createJaspHtml("<h2>5. Hypothesis Testing: Is The Effect Absent?</h2>")
-  hypothesisTitle$dependOn(c("student", "welch", "mannWhitneyU", "group", "dependent", "roboReport"))
 
-  optionsList <- .ttestOptionsList(options, type)
   groups    <- options$group
   levels <- base::levels(dataset[[ groups ]])
 
-  mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
-  mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
 
-  mtr_rounded <- lapply(mtr, round, digits = 3)
-  significant <- mtr$p < 0.05
-  signif_text <- if(significant) "" else "not "
+  # EffectSize Type (adapted from .ttestIndependentMainTable)
+  if (options$effectSizeType == "cohen")
+    effSizeName <- "Cohen's d"
+  else if (options$effectSizeType == "glass")
+    effSizeName <- "Glass' delta"
+  else if (options$effectSizeType == "hedges")
+    effSizeName <- "Hedges' g"
 
-  test_type <- c("standard t-", "Welch t-", "Mann-Whitney U")
+  parametersText <- createJaspHtml(
+    text = gettextf("<h2>4. Parameter Estimation: How Strong is the Effect?</h2>
+    As is apparent from the T-test table and the descriptive information,
+    the mean drp is observed to be higher for group=<b>%1$s</b> than for
+    group=<b>%2$s</b>. The location parameter equals the difference in the
+    two sample means (i.e., 9.9545), with a standard error of 4.3919.
+    The corresponding value for {effSizeName} equals -0.6841, with a standard
+    error of 0.3182 and a 95%% confidence  interval ranging from -1.2895 to
+    -0.0710. According to Cohen's classification scheme, the value of
+    -0.6841 corresponds to an observed effect that is 'medium to large'.
+    [note to Arne: we need to add a reference on this]<br>
+    The Brown-Forsythe test for equality of variances was not [fork: omit 'not']
+    significant at the .05 level, but we nevertheless [fork: and this is why we also]
+    report the results from the Welch test, which assumes that the variances in the
+    two groups are unequal. The location parameter in the Welch test equals
+    the difference in the two sample means and the associated standard error
+    is 4.3076. The corresponding value for {effSizeName} equals -0.6908, with a
+    standard error of 0.3185 and a 95%% confidence interval ranging from -1.2981
+    to -0.0750. According to Cohen's classification scheme, the value of
+    -0.6908 corresponds to an observed effect that is 'medium to large'.<br>
+    The Shapiro-Wilk test for normality was not [fork: omit 'not'] statistically
+    significant at the .05 level, but we nevertheless [fork: and this is why
+    we also] report the result from the Mann-Whitney test, which is based
+    only on the ranks of the observations; therefore, the Mann-Whitney test
+    is relatively robust. The Mann-Witney location parameter (i.e., the
+    Hodges-Lehmann estimate) equals -10.0001. The Mann-Whitney effect size
+    measure is the the rank biserial correlation; here it equals -0.4410,
+    with a standard error of 0.1744 and a 95%% confidence interval that
+    ranges from -0.6745 to -0.1274.<br>
+    For all estimates: the above confidence intervals do not identify a likely
+    range of values for effect size. In order to obtain this information a
+    Bayesian analysis would be needed (e.g., Morey et al., 2016;
+    van den Bergh, 2021).", levels[1], levels[2]))
 
-  jaspResults[["hypothesisTitle"]] <- hypothesisTitle
+  jaspResults[["parametersText"]] <- parametersText
+}
 
-  if (optionsList$wantsStudents) {
-    hypothesisStudent <- createJaspHtml(
-      text = gettextf("
-        For the %7$stest, the group difference is %3$s
-        statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-        We may %3$s reject the null-hypothesis of no population
-        difference between the groups. [NB. this needs to be adjusted for a
-        one-sided test] <br>",
-                      levels[1], levels[2],
-                      signif_text,  mtr_rounded["p"],
-                      mtr_rounded["df"],
-                      mtr_rounded["t"], "standard t-"))
-
-    jaspResults[["hypothesisStudent"]] <- hypothesisStudent
-  }
-
-  if (optionsList$wantsWilcox) {
-    hypothesisWilcox <- createJaspHtml(
-      text = gettextf("
-        For the %7$stest, the group difference is %3$s
-        statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-        We may %3$s reject the null-hypothesis of no population
-        difference between the groups. [NB. this needs to be adjusted for a
-        one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
-        maximum possible odds in favor of H1 over H0, which is not compelling and
-        urges caution. [only include for odds lower than 10]<br>",
-          levels[1], levels[2],
-          signif_text,  mtr_rounded["p"],
-          mtr_rounded["df"],
-          mtr_rounded["t"], "Mann-Whitney U"))
-
-    jaspResults[["hypothesisText"]] <- hypothesisWilcox
-  }
-
-  if (optionsList$wantsWelchs) {
-    hypothesisWelch <- createJaspHtml(
-      text = gettextf("
-        For the %7$stest, the group difference is %3$s
-        statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-        We may %3$s reject the null-hypothesis of no population
-        difference between the groups. [NB. this needs to be adjusted for a
-        one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
-        maximum possible odds in favor of H1 over H0, which is not compelling and
-        urges caution. [only include for odds lower than 10]<br>",
-          levels[1], levels[2],
-          signif_text,  mtr_rounded["p"],
-          mtr_rounded["df"],
-          mtr_rounded["t"], "Welch t-"))
-
-    jaspResults[["hypothesisWelch"]] <- hypothesisWelch
-  }
-
-  hypothesisPval <- createJaspHtml(
-    text = gettextf("The p-value does not quantify evidence for the null
-    hypothesis versus the alternative hypothesis; the p-value also cannot be
-    taken to mean that the null hypothesis is either likely or unlikely to
-    hold, or that the data are more or less likely to occur under the null
-    hypothesis than under the alternative hypothesis. In order to obtain this
-    information a Bayesian analysis would be needed."))
-
-  jaspResults[["hypothesisPval"]] <- hypothesisPval
+.ttestHypothesisText <- function(jaspResults, dataset, options, ready, type) {
+  # if (!options$roboReport)
+  #   return()
+  # hypothesisTitle <- createJaspHtml("<h2>5. Hypothesis Testing: Is The Effect Absent?</h2>")
+  # hypothesisTitle$dependOn(c("student", "welch", "mannWhitneyU", "group", "dependent", "roboReport"))
+  #
+  # optionsList <- .ttestOptionsList(options, type)
+  # groups    <- options$group
+  # levels <- base::levels(dataset[[ groups ]])
+  #
+  # mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
+  # mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
+  #
+  # mtr_rounded <- lapply(mtr, round, digits = 3)
+  # significant <- mtr$p < 0.05
+  # signif_text <- if(significant) "" else "not "
+  #
+  # test_type <- c("standard t-", "Welch t-", "Mann-Whitney U")
+  #
+  # jaspResults[["hypothesisTitle"]] <- hypothesisTitle
+  #
+  # if (optionsList$wantsStudents) {
+  #   hypothesisStudent <- createJaspHtml(
+  #     text = gettextf("
+  #       For the %7$stest, the group difference is %3$s
+  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
+  #       We may %3$s reject the null-hypothesis of no population
+  #       difference between the groups. [NB. this needs to be adjusted for a
+  #       one-sided test] <br>",
+  #                     levels[1], levels[2],
+  #                     signif_text,  mtr_rounded["p"],
+  #                     mtr_rounded["df"],
+  #                     mtr_rounded["t"], "standard t-"))
+  #
+  #   jaspResults[["hypothesisStudent"]] <- hypothesisStudent
+  # }
+  #
+  # if (optionsList$wantsWilcox) {
+  #   hypothesisWilcox <- createJaspHtml(
+  #     text = gettextf("
+  #       For the %7$stest, the group difference is %3$s
+  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
+  #       We may %3$s reject the null-hypothesis of no population
+  #       difference between the groups. [NB. this needs to be adjusted for a
+  #       one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
+  #       maximum possible odds in favor of H1 over H0, which is not compelling and
+  #       urges caution. [only include for odds lower than 10]<br>",
+  #         levels[1], levels[2],
+  #         signif_text,  mtr_rounded["p"],
+  #         mtr_rounded["df"],
+  #         mtr_rounded["t"], "Mann-Whitney U"))
+  #
+  #   jaspResults[["hypothesisText"]] <- hypothesisWilcox
+  # }
+  #
+  # if (optionsList$wantsWelchs) {
+  #   hypothesisWelch <- createJaspHtml(
+  #     text = gettextf("
+  #       For the %7$stest, the group difference is %3$s
+  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
+  #       We may %3$s reject the null-hypothesis of no population
+  #       difference between the groups. [NB. this needs to be adjusted for a
+  #       one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
+  #       maximum possible odds in favor of H1 over H0, which is not compelling and
+  #       urges caution. [only include for odds lower than 10]<br>",
+  #         levels[1], levels[2],
+  #         signif_text,  mtr_rounded["p"],
+  #         mtr_rounded["df"],
+  #         mtr_rounded["t"], "Welch t-"))
+  #
+  #   jaspResults[["hypothesisWelch"]] <- hypothesisWelch
+  # }
+  #
+  # hypothesisPval <- createJaspHtml(
+  #   text = gettextf("The p-value does not quantify evidence for the null
+  #   hypothesis versus the alternative hypothesis; the p-value also cannot be
+  #   taken to mean that the null hypothesis is either likely or unlikely to
+  #   hold, or that the data are more or less likely to occur under the null
+  #   hypothesis than under the alternative hypothesis. In order to obtain this
+  #   information a Bayesian analysis would be needed."))
+  #
+  # jaspResults[["hypothesisPval"]] <- hypothesisPval
 }
 
 .ttestReferences <- function(jaspResults, dataset, options, ready, type) {
@@ -1273,7 +1314,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
     <h5>Raincloud Plot</h5>
     Allen, M., Poggiali, D., Whitaker, K., Marshall, T. R., & Kievit, R. A. (2019). Raincloud plots: a multi-platform tool for robust data visualization. Wellcome open research, 4, 63. https://doi.org/10.12688/wellcomeopenres.15191.1
-
 
     <h5>Student's t-test</h5>
     'Student' Gosset, W.G. (1908). The probable error of a mean. Biometrika. 6 (1): 1–25. doi:10.1093/biomet/6.1.1. hdl:10338.dmlcz/143545.
