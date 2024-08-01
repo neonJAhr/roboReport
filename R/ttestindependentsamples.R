@@ -825,7 +825,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   # Defining variables for text output
   mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
   mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
-  alternative <- options$alternative # This works as a variable
 
   # EffectSize Type (adapted from .ttestIndependentMainTable)
   if (options$effectSizeType == "cohen")
@@ -1116,21 +1115,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   assumptionsText$dependOn(c("dependent", "group", "normalityTest",
                              "equalityOfVariancesTest", "textAssumptions"))
   jaspResults[["assumptionsText"]] <- assumptionsText
-
-  # Placeholder text TODO REMOVE
-  testingText <- createJaspHtml(
-    text = gettextf("<h2>Placeholder to print variables</h2>
-                      %1$s <p> %2$s <p>---<p> %3$s <p> %4$s <p>
-                    ---<p> %5$s <p> %6$s",
-                    paste(names(options), collapse = "; "),
-                    paste(options, collapse = "; "),
-                    paste(length(norm_obj), collapse = " "),
-                    paste(names(norm), collapse = "; "),
-                    paste(dim(eqvar), collapse = " "),
-                    paste(names(eqvar), collapse = "; ")
-
-    ))
-  jaspResults[["testingText"]] <- testingText
 }
 
 .ttestParametersText <- function(jaspResults, dataset, options, ready, type) {
@@ -1139,9 +1123,9 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     if (!options$roboReport)
         return()
 
-
     groups    <- options$group
     levels <- base::levels(dataset[[ groups ]])
+
 
     # EffectSize Type (adapted from .ttestIndependentMainTable)
     if (options$effectSizeType == "cohen")

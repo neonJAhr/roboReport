@@ -36,32 +36,65 @@ Section
 			checked: true; 
 			id: checkAssumptions
 		}
-		
- 		Group
- 		{
- 			title: qsTr("Assumption Checks")
- 			visible: checkAssumptions.checked
- 			CheckBox { name: "textNormalityTest";	label: qsTr("Normality") }
- 			CheckBox
- 			{
- 				name: "textEqualityOfVariancesTest";	label: qsTr("Equality of variances"); 
- 				RadioButtonGroup
- 				{
- 					name: "textEqualityOfVariancesTestType"
- 					RadioButton { value: "brownForsythe";	label: qsTr("Brown-Forsythe"); checked: true }
- 					RadioButton { value: "levene";			label: qsTr("Levene's") }
- 				}
- 			}
- 		}
+	}
+    Group {
+        id: dataGroup
+        title: qsTr("Data Assumption Checks")
+        CheckBox { 
+            id: textNormalityTest
+            name: "textNormalityTest"
+            label: qsTr("Normality")
+            checked: normalityTest.checked
+            onCheckedChanged: normalityTest.checked = checked
+        }
+        CheckBox {
+            id: textEqualityOfVariancesTest
+            name: "textEqualityOfVariancesTest"
+            label: qsTr("Equality of variances")
+            checked: equalityOfVariancesTest.checked
+            onCheckedChanged: equalityOfVariancesTest.checked = checked
+            RadioButtonGroup {
+                id: textEqualityOfVariancesTestType
+                name: "textEqualityOfVariancesTestType"
+                RadioButton { 
+                    id: textBrownForsythe
+                    value: "textBrownForsythe"
+                    label: qsTr("Brown-Forsythe")
+                    checked: brownForsythe.checked
+                    onCheckedChanged: brownForsythe.checked = checked
+                }
+                RadioButton { 
+                    id: textLevene
+                    value: "textLevene"
+                    label: qsTr("Levene's")
+                    checked: levene.checked
+                    onCheckedChanged: levene.checked = checked
+                }
+            }
+        }
 	}
 		
 	RadioButtonGroup
 	{
-		name: "text_alternative"
+		name: "textAlternative"
 		title: qsTr("Alternative Hypothesis")
-		RadioButton { value: "twoSided";	label: qsTr("Group 1 ≠ Group 2"); checked: true	}
-		RadioButton { value: "greater";	label: qsTr("Group 1 > Group 2")					}
-		RadioButton { value: "less"; label: qsTr("Group 1 < Group 2")						}
+		RadioButton { value: "textTwoSided";	
+			label: qsTr("Group 1 ≠ Group 2"); 
+			checked: twoSided.checked
+			onCheckedChanged: twoSided.checked = checked
+			}
+		RadioButton { 
+			value: "textGreater";	
+			label: qsTr("Group 1 > Group 2")
+			checked: greater.checked
+			onCheckedChanged: greater.checked = checked
+			}
+		RadioButton { 
+			value: "textLess"; 
+			label: qsTr("Group 1 < Group 2")
+			checked: less.checked
+			onCheckedChanged: less.checked = checked
+			}
 	}
 	
 	RadioButtonGroup
