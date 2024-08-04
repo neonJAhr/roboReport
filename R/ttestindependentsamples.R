@@ -1167,7 +1167,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   groups    <- options$group
   levels <- base::levels(dataset[[ groups ]])
 
-
   # EffectSize Type (adapted from .ttestIndependentMainTable)
   if (options$effectSizeType == "cohen")
     effSizeName <- "Cohen's d"
@@ -1178,11 +1177,11 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
   parametersText <- createJaspHtml(
     text = gettextf("<h2>4. Parameter Estimation: How Strong is the Effect?</h2>
-    As is apparent from the T-test table and the descriptive information,
+    As is apparent from the t-test table and the descriptive information,
     the mean drp is observed to be higher for group=<b>%1$s</b> than for
     group=<b>%2$s</b>. The location parameter equals the difference in the
     two sample means (i.e., 9.9545), with a standard error of 4.3919.
-    The corresponding value for {effSizeName} equals -0.6841, with a standard
+    The corresponding value for %3$s equals -0.6841, with a standard
     error of 0.3182 and a 95%% confidence  interval ranging from -1.2895 to
     -0.0710. According to Cohen's classification scheme, the value of
     -0.6841 corresponds to an observed effect that is 'medium to large'.
@@ -1192,7 +1191,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     report the results from the Welch test, which assumes that the variances in the
     two groups are unequal. The location parameter in the Welch test equals
     the difference in the two sample means and the associated standard error
-    is 4.3076. The corresponding value for {effSizeName} equals -0.6908, with a
+    is 4.3076. The corresponding value for %3$s equals -0.6908, with a
     standard error of 0.3185 and a 95%% confidence interval ranging from -1.2981
     to -0.0750. According to Cohen's classification scheme, the value of
     -0.6908 corresponds to an observed effect that is 'medium to large'.<br>
@@ -1208,93 +1207,101 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     For all estimates: the above confidence intervals do not identify a likely
     range of values for effect size. In order to obtain this information a
     Bayesian analysis would be needed (e.g., Morey et al., 2016;
-    van den Bergh, 2021).", levels[1], levels[2]))
+    van den Bergh, 2021).", levels[1], levels[2], effSizeName))
 
   jaspResults[["parametersText"]] <- parametersText
 }
 
 .ttestHypothesisText <- function(jaspResults, dataset, options, ready, type) {
-  # if (!options$roboReport)
-  #   return()
-  # hypothesisTitle <- createJaspHtml("<h2>5. Hypothesis Testing: Is The Effect Absent?</h2>")
-  # hypothesisTitle$dependOn(c("student", "welch", "mannWhitneyU", "group", "dependent", "roboReport"))
-  #
-  # optionsList <- .ttestOptionsList(options, type)
-  # groups    <- options$group
-  # levels <- base::levels(dataset[[ groups ]])
-  #
-  # mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
-  # mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
-  #
-  # mtr_rounded <- lapply(mtr, round, digits = 3)
-  # significant <- mtr$p < 0.05
-  # signif_text <- if(significant) "" else "not "
-  #
-  # test_type <- c("standard t-", "Welch t-", "Mann-Whitney U")
-  #
-  # jaspResults[["hypothesisTitle"]] <- hypothesisTitle
-  #
-  # if (optionsList$wantsStudents) {
-  #   hypothesisStudent <- createJaspHtml(
-  #     text = gettextf("
-  #       For the %7$stest, the group difference is %3$s
-  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-  #       We may %3$s reject the null-hypothesis of no population
-  #       difference between the groups. [NB. this needs to be adjusted for a
-  #       one-sided test] <br>",
-  #                     levels[1], levels[2],
-  #                     signif_text,  mtr_rounded["p"],
-  #                     mtr_rounded["df"],
-  #                     mtr_rounded["t"], "standard t-"))
-  #
-  #   jaspResults[["hypothesisStudent"]] <- hypothesisStudent
-  # }
-  #
-  # if (optionsList$wantsWilcox) {
-  #   hypothesisWilcox <- createJaspHtml(
-  #     text = gettextf("
-  #       For the %7$stest, the group difference is %3$s
-  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-  #       We may %3$s reject the null-hypothesis of no population
-  #       difference between the groups. [NB. this needs to be adjusted for a
-  #       one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
-  #       maximum possible odds in favor of H1 over H0, which is not compelling and
-  #       urges caution. [only include for odds lower than 10]<br>",
-  #         levels[1], levels[2],
-  #         signif_text,  mtr_rounded["p"],
-  #         mtr_rounded["df"],
-  #         mtr_rounded["t"], "Mann-Whitney U"))
-  #
-  #   jaspResults[["hypothesisText"]] <- hypothesisWilcox
-  # }
-  #
-  # if (optionsList$wantsWelchs) {
-  #   hypothesisWelch <- createJaspHtml(
-  #     text = gettextf("
-  #       For the %7$stest, the group difference is %3$s
-  #       statistically significant at the .05 level: p=%4$s, t(%5$s) = %6$s.
-  #       We may %3$s reject the null-hypothesis of no population
-  #       difference between the groups. [NB. this needs to be adjusted for a
-  #       one-sided test] The Vovk-Sellke maximum p-Ratio of 3.6162 indicates the
-  #       maximum possible odds in favor of H1 over H0, which is not compelling and
-  #       urges caution. [only include for odds lower than 10]<br>",
-  #         levels[1], levels[2],
-  #         signif_text,  mtr_rounded["p"],
-  #         mtr_rounded["df"],
-  #         mtr_rounded["t"], "Welch t-"))
-  #
-  #   jaspResults[["hypothesisWelch"]] <- hypothesisWelch
-  # }
-  #
-  # hypothesisPval <- createJaspHtml(
-  #   text = gettextf("The p-value does not quantify evidence for the null
-  #   hypothesis versus the alternative hypothesis; the p-value also cannot be
-  #   taken to mean that the null hypothesis is either likely or unlikely to
-  #   hold, or that the data are more or less likely to occur under the null
-  #   hypothesis than under the alternative hypothesis. In order to obtain this
-  #   information a Bayesian analysis would be needed."))
-  #
-  # jaspResults[["hypothesisPval"]] <- hypothesisPval
+  if (!options$roboReport)
+    return()
+  hypothesisTitle <- createJaspHtml("<h2>5. Hypothesis Testing: Is The Effect Absent?</h2>")
+  hypothesisTitle$dependOn(c("student", "welch", "mannWhitneyU", "group", "dependent", "roboReport"))
+
+  optionsList <- .ttestOptionsList(options, type)
+  groups    <- options$group
+  levels <- base::levels(dataset[[ groups ]])
+
+  test_type <- c("standard t-", "Welch t-", "Mann-Whitney U")
+
+  mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
+  mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
+
+  jaspResults[["hypothesisTitle"]] <- hypothesisTitle
+
+  format_test_result <- function(test_name, test_data, options) {
+    effSizeName <- switch(options$effectSizeType,
+                          "cohen" = "Cohen's d",
+                          "glass" = "Glass' delta",
+                          "hedges" = "Hedges' g")
+
+    if (test_name == "Mann-Whitney") {
+      result <- paste0("p = ", test_data$p,
+                       ", U(", test_data$df, ") = ", test_data$Statistic)
+    } else {result <- paste0("p = ", test_data$p,
+                             ", t(", test_data$df, ") = ", test_data$Statistic)}
+    return(result)
+  }
+
+  # uniformly naming the testStat "Statistic", copied from .ttestIndependentMainTable
+  if (optionsList$wantsWilcox && optionsList$onlyTest) {
+    names(mtr)[names(mtr) == 'U'] <- 'Statistic'
+  } else if (optionsList$wantsWelchs && optionsList$onlyTest) {
+    names(mtr)[names(mtr) == 't'] <- 'Statistic'
+  } else if (optionsList$wantsStudents && optionsList$onlyTest) {
+    names(mtr)[names(mtr) == 't'] <- 'Statistic'
+  }
+
+  # Alternative Hypothesis
+  summNullHypo <- switch(options$alternative,
+                         "twoSided" = "no population difference between the groups",
+                         "greater" = sprintf("the %s population being equal or greater than the %s population", levels[2], levels[1]),
+                         "less" = sprintf("the %s population being equal or lesser than the %s population", levels[2], levels[1]))
+
+  # Vovk-Sellke
+  summaryVovkSellke <- if (options$vovkSellke) {
+    vovkSellkeLevel <- if (mtr_rounded$VovkSellkeMPR > 10) {
+      ", which is substantial [EJ APPROVAL FOR TEXT]"
+    } else {
+      ", which is not compelling and urges caution"
+    }
+    sprintf("The Vovk-Sellke maximum p-Ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
+            mtr_rounded$VovkSellkeMPR, vovkSellkeLevel)
+  } else ""
+
+  # Create individual summaries for each test
+  test_summaries <- lapply(row.names(mtr), function(test) {
+    test_data <- round(mtr[test,], 3)
+    significant <- test_data$p < 0.05
+    significant_text <- if(significant) "" else "not"
+
+    sprintf("For the %1$s test, the group difference is %2$s statistically significant at the .05 level: %3$s
+      We may %4$s reject the null-hypothesis of %5$s. %6$s",
+            test,
+            significant_text,
+            format_test_result(test, test_data, options),
+            significant_text,
+            summNullHypo,
+            summaryVovkSellke)
+  })
+
+  # Combine all summaries
+  all_summaries <- paste(test_summaries, collapse = "\n\n")
+
+  hypoTests <- createJaspHtml(
+    text = gettextf("%1$s", all_summaries))
+
+  jaspResults[["hypoTests"]] <- hypoTests
+
+  hypothesisPval <- createJaspHtml(
+    text = gettextf("Note that the p-value does not quantify evidence for the null
+    hypothesis versus the alternative hypothesis; the p-value also cannot be
+    taken to mean that the null hypothesis is either likely or unlikely to
+    hold, or that the data are more or less likely to occur under the null
+    hypothesis than under the alternative hypothesis. In order to obtain this
+    information a Bayesian analysis would be needed."))
+
+  jaspResults[["hypothesisPval"]] <- hypothesisPval
 }
 
 .ttestReferences <- function(jaspResults, dataset, options, ready, type) {
@@ -1309,16 +1316,16 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     <h5>Shapiro-Wilk Normality Test</h5>
     Shapiro, S.S. and Wilk, M.B. (1965) An Analysis of Variance Test for Normality (Complete Samples). Biometrika, 52, 591-611. https://doi.org/10.1093/biomet/52.3-4.591
 
-    <h5>Levene's test</h5>
+    <h5>Levene's Test</h5>
     Levene, H. (1960) Robust Tests for Equality of Variances. In: Olkin, I., Ed., Contributions to Probability and Statistics, Stanford University Press, Palo Alto, 278-292.
 
     <h5>Raincloud Plot</h5>
     Allen, M., Poggiali, D., Whitaker, K., Marshall, T. R., & Kievit, R. A. (2019). Raincloud plots: a multi-platform tool for robust data visualization. Wellcome open research, 4, 63. https://doi.org/10.12688/wellcomeopenres.15191.1
 
-    <h5>Student's t-test</h5>
+    <h5>Student's T-Test</h5>
     'Student' Gosset, W.G. (1908). The probable error of a mean. Biometrika. 6 (1): 1–25. doi:10.1093/biomet/6.1.1. hdl:10338.dmlcz/143545.
 
-    <h5>Welch's t-test</h5>
+    <h5>Welch's T-Test</h5>
     Welch, B. L. (1947). The generalization of 'Student's' problem when several different population variances are involved. Biometrika. 34 (1–2): 28–35. doi:10.1093/biomet/34.1-2.28"
                     )
   )
