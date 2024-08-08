@@ -825,7 +825,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   if (!options$roboReport)
     return()
 
-  if (options$verbosityLevels == "Low")
+  if (options$verbosityLevels != "Low")
     return()
 
   optionsList <- .ttestOptionsList(options, type)
@@ -997,10 +997,23 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   desc <- as.data.frame(desc_obj)
   mtr_obj <- jaspResults[["mainTableResults"]]$object
   mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
-
   groups    <- options$group
   levels <- base::levels(dataset[[ groups ]])
-  dependent <- options$dependent
+  compare <- if(desc[1, "mean"] > desc[2, "mean"]) "higher" else "lower"
+
+  format_test_result <- function(test_name, test_data, options) {
+    effSizeName <- switch(options$effectSizeType,
+                          "cohen" = "Cohen's d",
+                          "glass" = "Glass' delta",
+                          "hedges" = "Hedges' g")
+
+    if (test_name == "Mann-Whitney") {
+      result <- paste0("p = ", test_data$p,
+                       ", U(", test_data$df, ") = ", test_data$Statistic)
+    } else {result <- paste0("p = ", test_data$p,
+                             ", t(", test_data$df, ") = ", test_data$Statistic)}
+    return(result)
+  }
 
   # Descriptives Title
   descripTitle <- createJaspHtml(
@@ -1010,17 +1023,17 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
                           "raincloudPlot"))
 
   # Text Raincloud Plot
-  if (options$raincloudPlot)
-    descripRainPlot <- ", followed by a raincloud plot that shows the individual observations"
-  else descripRainPlot <- ""
+  if (options$raincloudPlot) {
+    rainPlotActive <- ", followed by a raincloud plot that shows the individual observations"
+    descripRainPlot <- "The raincloud plot shows the individual observations, together with box plots and density estimates (flipped on their side). The raincloud plot allows a visual assessment of (1) the extent to which the data in each group are normally distributed (i.e., are the density estimates symmetric and bell-shaped?); (2) the extent to which the data contain outliers; (3) the extent to which the group variances are equal. When a visual inspection of the raincloud plot suggests non-normality, outliers, or heterogeneity in variance, this may be followed up with assumption tests. One may address each violation separately (i.e., transform the dependent variable to normality, remove the outliers, apply the Welch test instead of the t-test), but in these cases it is generally prudent to conduct a nonparametric test that only takes into account the ranks of the observations.  Note that it when reporting the results of a t-test, it is crucial to plot the data."
+  } else {
+    rainPlotActive <- ""
+    descripRainPlot <- ""
+  }
+
 
   indiv_desc <- apply(desc, 1, function(row) {
-    sig_text <- if(significant) "" else "not "
-    norm_sig <- if(significant) "" else "not "
-    norm_rej <- if(significant) "reject" else "retain"
-
-    sprintf("group = <b>%1$s</b> contains %2$s observations
-      and has a mean <b>%3$s</b> of %4$s with a standard deviation of %5$s",
+    sprintf("group = <b>%1$s</b> contains %2$s observations and has a mean <b>%3$s</b> of %4$s with a standard deviation of %5$s",
             row["group"],
             row["N"],
             row["variable"],
@@ -1028,55 +1041,50 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
             round(as.numeric(row["se"]), 3))
   })
   base_desc <- paste(indiv_desc, collapse = ";\n")
+
   # Final output text
   descriptivesText <- createJaspHtml(
     text = gettextf("
       The table below summarizes the observed data for each group separately %1$s.<br>
       INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
-      As can be seen from the table, %2$s. The observed mean <b>%3$s</b> in group = <b>%4$s</b>
-      is higher than the observed mean <b>%3$s</b> in group = <b>%5$s</b>.
-      This difference is [fork: is not] statistically significant at the .05 level:
-      p=.0286, t(42) = -2.2666. We may reject [fork: may not reject] the null-hypothesis
-      of no population difference between the groups. [NB. this needs to be adjusted for
-      a one-sided test] Note that this does not mean that the data provide evidence
-      against [fork: for] the null hypothesis or provide evidence for [fork: against]
-      the alternative hypothesis; it also does not mean that the null hypothesis is
-      unlikely [fork: likely] to hold. These results also do not identify a likely
-      range of values for effect size. In order to address these questions a Bayesian
-      analysis would be needed. The Vovk-Sellke maximum p-Ratio of 3.6162 indicates
-      the maximum possible odds in favor of H1 over H0, which is not compelling and
-      urges caution. [only include for odds lower than 10] [Note to Arne: these last
-      sentences would clearly be part of a verbose report] [Note to Arne: we could
-      also include a mention of whether the assumptions appear violated, and what
-      a nonparametric test shows]",
-      descripRainPlot, base_desc, desc[1,"variable"],
-      levels[1], levels[2]))
-  # Placeholder text TODO REMOVE
-  testingText <- createJaspHtml(
-    text = gettextf("<h2>Placeholder to print variables</h2>
-                      %1$s <p> %2$s <p>---<p> %3$s <p> %4$s",
-                    paste(names(options), collapse = "; "),
-                    paste(options, collapse = "; "),
-                    paste(length(desc_obj), collapse = " "),
-                    paste(names(desc), collapse = "; ")
-
-    ))
-  jaspResults[["testingText"]] <- testingText
+      As can be seen from the table, %2$s.
+      The observed mean <b>%3$s</b> in group = <b>%4$s</b> is %5$s than the observed
+      mean <b>%3$s</b> in group = <b>%6$s</b>. %7$s",
+                    rainPlotActive, base_desc, desc[1,"variable"],
+                    levels[1], compare, levels[2], descripRainPlot))
 
   jaspResults[["descriptivesText"]] <- descriptivesText
 }
 
 .ttestAssumptionsText <- function(jaspResults, dataset, options, ready, type) {
 
-  if (!options$roboReport || !options$textAssumptions)
-      return()
-  if (!options$normalityTest && !options$equalityOfVariancesTest)
-      return()
-  optionsList <- .ttestOptionsList(options, type)
-  if (options$verbosityLevels == "Low")
-    return()
+  # If user selects RoboReport and wants High output, ignore conditions for not printing
+  if (options$roboReport && (options$verbosityLevels == "High")) {
+    options$normalityTest <- TRUE
+    options$equalityOfVariancesTest <- TRUE
 
-  # Does not contain anything currently
+#    .ttestIndependentNormalTable(jaspResults, dataset, options, ready, type)
+#    .ttestIndependentEqVarTable( jaspResults, dataset, options, ready, type)
+  }
+
+  else {
+    if (!options$textAssumptions)
+      return()
+    if (!options$normalityTest && !options$equalityOfVariancesTest)
+      return()
+    if (options$verbosityLevels == "Low")
+      return()
+  }
+
+  optionsList <- .ttestOptionsList(options, type)
+
+  assumptionsTitle <- createJaspHtml(
+    text = gettextf("<h2>3. Assumption Checks</h2>"))
+  assumptionsTitle$dependOn(c("dependent", "group", "verbosityLevels",
+                              "roboReport", "normalityTest",
+                              "equalityOfVariancesTest"))
+  jaspResults[["assumptionsTitle"]] <- assumptionsTitle
+
   norm_obj <- jaspResults[["normTableResults"]]$object
   norm <- as.data.frame(norm_obj)
 
@@ -1154,8 +1162,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   else (equalVarText <- "")
 
   assumptionsText <- createJaspHtml(
-    text = gettextf("<h2>3. Assumption Checks</h2>
-      %1$s
+    text = gettextf("%1$s
       INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
       %2$s",
       normalityText, equalVarText))
@@ -1165,12 +1172,22 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 }
 
 .ttestParametersText <- function(jaspResults, dataset, options, ready, type) {
-  if (!is.null(jaspResults[["parametersText"]]))
-    return()
+
   if (!options$roboReport)
     return()
   if (options$verbosityLevels == "Low")
     return()
+
+  parameterTitle <- createJaspHtml(
+    text = gettextf("<h2>4. Parameter Estimation: How Strong is the Effect?</h2>"))
+  parameterTitle$dependOn(c("dependent", "group", "descriptives"))
+  jaspResults[["parameterTitle"]] <- parameterTitle
+
+  optionsList <- .ttestOptionsList(options, type)
+
+  # Defining variables for text output
+  mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
+  mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
 
   groups    <- options$group
   levels <- base::levels(dataset[[ groups ]])
@@ -1184,12 +1201,11 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     effSizeName <- "Hedges' g"
 
   parametersText <- createJaspHtml(
-    text = gettextf("<h2>4. Parameter Estimation: How Strong is the Effect?</h2>
-    As is apparent from the t-test table and the descriptive information,
-    the mean drp is observed to be higher for group=<b>%1$s</b> than for
-    group=<b>%2$s</b>. The location parameter equals the difference in the
+    text = gettextf("As is apparent from the t-test table and the descriptive information,
+    the mean %1$s is observed to be higher for group=<b>%2$s</b> than for
+    group=<b>%3$s</b>. The location parameter equals the difference in the
     two sample means (i.e., 9.9545), with a standard error of 4.3919.
-    The corresponding value for %3$s equals -0.6841, with a standard
+    The corresponding value for %4$s equals -0.6841, with a standard
     error of 0.3182 and a 95%% confidence  interval ranging from -1.2895 to
     -0.0710. According to Cohen's classification scheme, the value of
     -0.6841 corresponds to an observed effect that is 'medium to large'.
@@ -1199,7 +1215,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     report the results from the Welch test, which assumes that the variances in the
     two groups are unequal. The location parameter in the Welch test equals
     the difference in the two sample means and the associated standard error
-    is 4.3076. The corresponding value for %3$s equals -0.6908, with a
+    is 4.3076. The corresponding value for %4$s equals -0.6908, with a
     standard error of 0.3185 and a 95%% confidence interval ranging from -1.2981
     to -0.0750. According to Cohen's classification scheme, the value of
     -0.6908 corresponds to an observed effect that is 'medium to large'.<br>
@@ -1215,7 +1231,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     For all estimates: the above confidence intervals do not identify a likely
     range of values for effect size. In order to obtain this information a
     Bayesian analysis would be needed (e.g., Morey et al., 2016;
-    van den Bergh, 2021).", levels[1], levels[2], effSizeName))
+    van den Bergh, 2021).", options$dependent, levels[1], levels[2], effSizeName))
 
   jaspResults[["parametersText"]] <- parametersText
 }
