@@ -825,6 +825,9 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   if (!options$roboReport)
     return()
 
+  if (options$verbosityLevels == "Low")
+    return()
+
   optionsList <- .ttestOptionsList(options, type)
 
   # Defining variables for text output
@@ -984,6 +987,9 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     errorText$dependOn(c("dependent", "group"))
     jaspResults[["errorText"]] <- errorText
   }
+  if (options$verbosityLevels == "Low")
+    return()
+
   optionsList <- .ttestOptionsList(options, type)
 
   # Variables
@@ -1067,6 +1073,8 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   if (!options$normalityTest && !options$equalityOfVariancesTest)
       return()
   optionsList <- .ttestOptionsList(options, type)
+  if (options$verbosityLevels == "Low")
+    return()
 
   # Does not contain anything currently
   norm_obj <- jaspResults[["normTableResults"]]$object
@@ -1088,7 +1096,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   groups    <- options$group
 
   levels <- base::levels(dataset[[ groups ]])
-  # norm_sig <- ifelse(norm_df["p"] > 0.05, "not", "")
 
   if (options$normalityTest) {
     # Create individual summaries for each test
@@ -1109,8 +1116,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
               row["lev"])
     })
     all_summaries <- paste(norm_summaries, collapse = "\n")
-    normalityText <- gettextf("%1$s [Note to Arne: in high-verbose
-      level, we ought to add the reference to Shapiro-Wilk] Note that when the
+    normalityText <- gettextf("%1$s Note that when the
       Shapiro-Wilk test is statistically nonsignificant this does not mean that
       the assumption of normality is met, or that the data support that
       assertion. Likewise, when the Shapiro-Wilk test is statistically
@@ -1162,6 +1168,8 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   if (!is.null(jaspResults[["parametersText"]]))
     return()
   if (!options$roboReport)
+    return()
+  if (options$verbosityLevels == "Low")
     return()
 
   groups    <- options$group
@@ -1215,6 +1223,9 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 .ttestHypothesisText <- function(jaspResults, dataset, options, ready, type) {
   if (!options$roboReport)
     return()
+  if (options$verbosityLevels == "Low")
+    return()
+
   hypothesisTitle <- createJaspHtml("<h2>5. Hypothesis Testing: Is The Effect Absent?</h2>")
   hypothesisTitle$dependOn(c("student", "welch", "mannWhitneyU", "group", "dependent", "roboReport"))
 
@@ -1306,6 +1317,8 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
 .ttestReferences <- function(jaspResults, dataset, options, ready, type) {
   if (!options$roboReport)
+    return()
+  if (options$verbosityLevels == "Low")
     return()
 
   references <- createJaspHtml(

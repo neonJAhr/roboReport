@@ -101,8 +101,8 @@ Section
 	{
 		name: "verbosityLevels";
 		title: qsTr("Verbosity")
-		RadioButton { value: "verbLow";	label: qsTr("Low"); checked: true	}
-		RadioButton { value: "verbMedium";	label: qsTr("Medium")			}
-		RadioButton { value: "verbHigh"; label: qsTr("High")				}
+		RadioButton { value: "verbLow";	label: qsTr("Low")						}
+		RadioButton { value: "verbMedium";	label: qsTr("Medium"); checked: true}
+		RadioButton { value: "verbHigh"; label: qsTr("High")					}
 	}
 }
