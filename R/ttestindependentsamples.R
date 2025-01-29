@@ -1253,6 +1253,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
   mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
   mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
+  mtr_rounded <- lapply(mtr, round, digits = 3)
 
   jaspResults[["hypothesisTitle"]] <- hypothesisTitle
 
@@ -1285,7 +1286,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
                          "greater" = sprintf("the %s population being equal or greater than the %s population", levels[2], levels[1]),
                          "less" = sprintf("the %s population being equal or lesser than the %s population", levels[2], levels[1]))
 
-  # Vovk-Sellke
+  # Vovk-Sellke #RETURNHERE
   summaryVovkSellke <- if (options$vovkSellke) {
     vovkSellkeLevel <- if (mtr_rounded$VovkSellkeMPR > 10) {
       ", which is substantial [EJ APPROVAL FOR TEXT]"
