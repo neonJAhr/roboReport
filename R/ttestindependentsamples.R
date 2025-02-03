@@ -809,7 +809,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
     # Create text
     introText <- createJaspHtml(text =
-                 gettextf("This is an autostat report for an independent samples t-test.
+                 gettextf("This is a report for an independent samples t-test.
                  Interest centers on the comparison of two groups (i.e., group =
                  <b>%1$s</b> versus group = <b>%2$s</b>) concerning their population
                  means for the dependent variable <b>%3$s</b>. The t-test assumes that
@@ -905,11 +905,11 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   # Vovk-Sellke
   summaryVovkSellke <- if (options$vovkSellke) {
       vovkSellkeLevel <- if (mtr_rounded$VovkSellkeMPR > 10) {
-          ", which is substantial [EJ APPROVAL FOR TEXT]"
+          ", which is substantial"
       } else {
           ", which is not compelling and urges caution"
       }
-      sprintf("The Vovk-Sellke maximum p-Ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
+      sprintf("The Vovk-Sellke maximum p-ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
               mtr_rounded$VovkSellkeMPR, vovkSellkeLevel)
   } else ""
 
@@ -1172,6 +1172,8 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
       normalityText, equalVarText))
   assumptionsText$dependOn(c("dependent", "group", "normalityTest",
                              "equalityOfVariancesTest", "textAssumptions"))
+
+  #TODO: WARN user if any check is significant, as this likely means that a t-test is inappropriate!
   jaspResults[["assumptionsText"]] <- assumptionsText
 }
 
@@ -1183,7 +1185,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     return()
 
   parameterTitle <- createJaspHtml(
-    text = gettextf("<h2>4. Parameter Estimation: How Strong is the Effect?</h2>"))
+    text = gettextf("<h2>4. Parameter Estimation: How Strong Is The Effect?</h2>"))
   parameterTitle$dependOn(c("dependent", "group", "descriptives"))
   jaspResults[["parameterTitle"]] <- parameterTitle
 
@@ -1236,24 +1238,24 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     %7$s corresponds to an observed effect that is 'medium to large'.
     (Cohen, 1988; Funder & Ozer, 2018).<br>
     The Brown-Forsythe test for equality of variances was %11$s
-    significant at the .05 level%12$s
-    he results from the Welch test, which assumes that the variances in the
+    significant at the .05 level%12$she
+    results from the Welch test, which assumes that the variances in the
     two groups are unequal. The location parameter in the Welch test equals
     the difference in the two sample means and the associated standard error
-    is 4.3076 %13$s. The corresponding value for %6$s equals -0.6908 %14$s, with a
-    standard error of 0.3185 %15$s and a 95%% confidence interval ranging from -1.2981 %16$s
-    to -0.0750 %17$s. According to Cohen's classification scheme, the value of
+    is %13$s. The corresponding value for %6$s equals %14$s, with a
+    standard error of 0.3185 %15$s and a 95%% confidence interval ranging from %16$s
+    to %17$s. According to Cohen's classification scheme, the value of
     -0.6908 corresponds to an observed effect that is 'medium to large'.<br>
     The Shapiro-Wilk test for normality was not [fork: omit 'not'] statistically
     significant at the .05 level, but we nevertheless [fork: and this is why
-    we also] report the result from the Mann-Whitney test, which is based
+    we also] report the results from the Mann-Whitney test, which is based
     only on the ranks of the observations; therefore, the Mann-Whitney test
-    is relatively robust. The Mann-Witney location parameter (i.e., the
+    is relatively robust. The Mann-Whitney location parameter (i.e., the
     Hodges-Lehmann estimate) equals %18$s. The Mann-Whitney effect size
-    measure is the the rank biserial correlation; here it equals -0.4410,
-    with a standard error of 0.1744 and a 95%% confidence interval that
-    ranges from -0.6745 to -0.1274.<br>
-    For all estimates: the above confidence intervals do not identify a likely
+    measure is the the rank biserial correlation; here it equals -0.441,
+    with a standard error of 0.174 and a 95%% confidence interval that
+    ranges from 0.127 to 0.674.<br>
+    The above confidence intervals do not identify a likely
     range of values for effect size. In order to obtain this information a
     Bayesian analysis would be needed (e.g., Morey et al., 2016;
     van den Bergh, 2021).", options$dependent, levels[1], levels[2], round(mtr[1,"md"], 3),
@@ -1264,16 +1266,16 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
                     round(mtr[3,"md"], 3)))
 
   # Placeholder text TODO REMOVE
-  testingText <- createJaspHtml(
-    text = gettextf("<h2>Placeholder to print variables</h2>
-                        %1$s <p> %2$s <p>---<p> %3$s <p> %4$s <p>",
-                    paste(names(options), collapse = "; "),
-                    paste(options, collapse = "; "),
-                    paste(length(mtr), collapse = " "),
-                    paste(names(mtr), collapse = "; ")
-    ))
+  testingText <- createJaspHtml("As is apparent from the t-test table and the descriptive information, the mean drp is observed to be higher for group = Treat than for group = Control. The location parameter equals the difference in the two sample means (i.e., 9.954), with a standard error of 4.392. The corresponding value for Cohen's d equals 0.684, with a standard error of 0.318 and a 95% confidence interval ranging from 0.071 to 1.289. According to Cohen's classification scheme, the value of 0.684 corresponds to an observed effect that is ''medium to large''.
 
-  jaspResults[["parametersText"]] <- parametersText
+The Brown-Forsythe test for equality of variances was not significant at the .05 level, but we nevertheless report the results from the Welch test, which assumes that the variances in the two groups are unequal. The location parameter in the Welch test equals the difference in the two sample means and the associated standard error is 4.308. The corresponding value for Cohen's d equals 0.691, with a standard error of 0.3185 and a 95% confidence interval ranging from 0.075 to 1.298. According to Cohen's classification scheme, the value of 0.691 corresponds to an observed effect that is ''medium to large''.
+
+The Shapiro-Wilk test for normality was not statistically significant at the .05 level, but we nevertheless report the results from the Mann-Whitney test, which is based only on the ranks of the observations; therefore, the Mann-Whitney test is relatively robust. The Mann-Whitney location parameter (i.e., the Hodges-Lehmann estimate) equals 10. The Mann-Whitney effect size measure is the the rank biserial correlation; here it equals 0.441, with a standard error of 0.174 and a 95% confidence interval that ranges from 0.127 to 0.674.
+
+The above confidence intervals do not identify a likely range of values for effect size. In order to obtain this information a Bayesian analysis would be needed (e.g., Morey et al., 2016; van den Bergh, 2021)."
+    )
+
+  # jaspResults[["parametersText"]] <- parametersText
 
   jaspResults[["testingText"]] <- testingText
 }
@@ -1284,7 +1286,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   if (options$verbosityLevels == "Low")
     return()
 
-  hypothesisTitle <- createJaspHtml("<h2>5. Hypothesis Testing: Is The Effect Absent?</h2>")
+  hypothesisTitle <- createJaspHtml("<h2>5. Hypothesis Testing: Is the Effect Absent?</h2>")
   hypothesisTitle$dependOn(c("student", "welch", "mannWhitneyU", "group", "dependent", "roboReport"))
 
   optionsList <- .ttestOptionsList(options, type)
@@ -1306,7 +1308,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
     if (test_name == "Mann-Whitney") {
       result <- paste0("p = ", test_data$p,
-                       ", U(", test_data$df, ") = ", test_data$Statistic)
+                       ", rank biserial correlation = ", test_data$effectSize)
     } else {result <- paste0("p = ", test_data$p,
                              ", t(", test_data$df, ") = ", test_data$Statistic)}
     return(result)
@@ -1342,12 +1344,11 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
       } else {
         ", which is not compelling and urges caution"
       }
-      sprintf("The Vovk-Sellke maximum p-Ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
+      sprintf("The Vovk-Sellke maximum p-ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
               test_data$VovkSellkeMPR, vovkSellkeLevel)
     } else ""
 
-    sprintf("For the %1$s test, the group difference is %2$s statistically significant at the .05 level: %3$s
-      We may %4$s reject the null-hypothesis of %5$s. %6$s",
+    sprintf("For the %1$s test, the group difference is %2$s statistically significant at the .05 level: %3$s. We may %4$s reject the null-hypothesis of %5$s. %6$s",
             test,
             significant_text,
             format_test_result(test, test_data, options),
@@ -1365,12 +1366,8 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   jaspResults[["hypoTests"]] <- hypoTests
 
   hypothesisPval <- createJaspHtml(
-    text = gettextf("Note that the p-value does not quantify evidence for the null
-    hypothesis versus the alternative hypothesis; the p-value also cannot be
-    taken to mean that the null hypothesis is either likely or unlikely to
-    hold, or that the data are more or less likely to occur under the null
-    hypothesis than under the alternative hypothesis. In order to obtain this
-    information a Bayesian analysis would be needed."))
+    text = gettextf("Note that the p-value does not quantify evidence for the null hypothesis versus the alternative hypothesis; the p-value also cannot be taken to mean that the null hypothesis is either likely or unlikely to hold, or that the data are more or less likely to occur under the null hypothesis than under the alternative hypothesis. In order to obtain this information a Bayesian analysis would be needed."
+                    ))
 
   jaspResults[["hypothesisPval"]] <- hypothesisPval
 }
