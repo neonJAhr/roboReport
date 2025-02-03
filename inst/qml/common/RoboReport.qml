@@ -37,7 +37,31 @@ Section
 			id: checkAssumptions
 		}
 	}
-    Group {
+		
+	RadioButtonGroup
+	{
+		name: "textAlternative"
+		title: qsTr("Alternative Hypothesis")
+		RadioButton { value: "textTwoSided";	
+			label: qsTr("Group 1 ≠ Group 2"); 
+			checked: twoSided.checked
+			onCheckedChanged: twoSided.checked = checked
+			}
+		RadioButton { 
+			value: "textGreater";	
+			label: qsTr("Group 1 > Group 2")
+			checked: greater.checked
+			onCheckedChanged: greater.checked = checked
+			}
+		RadioButton { 
+			value: "textLess"; 
+			label: qsTr("Group 1 < Group 2")
+			checked: less.checked
+			onCheckedChanged: less.checked = checked
+			}
+	}
+	
+	    Group {
         id: dataGroup
         title: qsTr("Data Assumption Checks")
         CheckBox { 
@@ -72,29 +96,6 @@ Section
                 }
             }
         }
-	}
-		
-	RadioButtonGroup
-	{
-		name: "textAlternative"
-		title: qsTr("Alternative Hypothesis")
-		RadioButton { value: "textTwoSided";	
-			label: qsTr("Group 1 ≠ Group 2"); 
-			checked: twoSided.checked
-			onCheckedChanged: twoSided.checked = checked
-			}
-		RadioButton { 
-			value: "textGreater";	
-			label: qsTr("Group 1 > Group 2")
-			checked: greater.checked
-			onCheckedChanged: greater.checked = checked
-			}
-		RadioButton { 
-			value: "textLess"; 
-			label: qsTr("Group 1 < Group 2")
-			checked: less.checked
-			onCheckedChanged: less.checked = checked
-			}
 	}
 	
 	RadioButtonGroup

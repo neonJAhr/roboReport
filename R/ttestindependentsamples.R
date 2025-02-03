@@ -283,7 +283,7 @@ TTestIndependentSamplesInternal <- function(jaspResults, dataset = NULL, options
       }
 
       table$addRows(row, rowNames = rowName)
-	# SHOW programmers
+
       mainTableData <- rbind(mainTableData,do.call(cbind,result[["row"]]))
     }
 
@@ -428,8 +428,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
   return(list(row = row, leveneViolated = leveneViolated))
 }
-# TODO Remove next line
-##### Other Tables Fill ----
+
 .ttestIndependentNormalFill <- function(jaspResults, table, dataset, options) {
   ## for a independent t-test, we need to check both group vectors for normality
 
@@ -1033,7 +1032,8 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
 
   indiv_desc <- apply(desc, 1, function(row) {
-    sprintf("group = <b>%1$s</b> contains %2$s observations and has a mean <b>%3$s</b> of %4$s with a standard deviation of %5$s",
+    sprintf("group = <b>%1$s</b> contains %2$s observations and has a mean <b>%3$s</b> of %4$s
+            with a standard deviation of %5$s",
             row["group"],
             row["N"],
             row["variable"],
@@ -1045,11 +1045,15 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   # Final output text
   descriptivesText <- createJaspHtml(
     text = gettextf("
-      The table below summarizes the observed data for each group separately %1$s.<br>
-      INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
+      The table above summarizes the observed data for each group separately %1$s.
       As can be seen from the table, %2$s.
+
+      [Future Work may want to integrate the Descriptives table here.]
+
       The observed mean <b>%3$s</b> in group = <b>%4$s</b> is %5$s than the observed
-      mean <b>%3$s</b> in group = <b>%6$s</b>. %7$s",
+      mean <b>%3$s</b> in group = <b>%6$s</b>. %7$s
+
+      For more descriptives, use the JASP Descriptives module.",
                     rainPlotActive, base_desc, desc[1,"variable"],
                     levels[1], compare, levels[2], descripRainPlot))
 
@@ -1068,7 +1072,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   }
 
   else {
-    if (!options$textAssumptions)
+    if (!options$roboReport || !options$textAssumptions)
       return()
     if (!options$normalityTest && !options$equalityOfVariancesTest)
       return()
@@ -1146,7 +1150,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
       that groups have different variances. In order to address these
       questions a Bayesian analysis would be needed.",
       eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
-  # else (equalVarText <- "") # TODO: Replace this with Levene below
   else if (options$equalityOfVariancesTest && (nameOfEqVarTest == "levene"))
     equalVarText <- gettextf("The Levene's test for equality of variances is %1$s
       statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
@@ -1163,7 +1166,8 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
   assumptionsText <- createJaspHtml(
     text = gettextf("%1$s
-      INSERT TABLE IN HERE, LIKELY WITH JASP CONTAINER<br>
+      [Future Work may want to integrate the Assumptions tables here.]
+
       %2$s",
       normalityText, equalVarText))
   assumptionsText$dependOn(c("dependent", "group", "normalityTest",
@@ -1185,9 +1189,13 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
   optionsList <- .ttestOptionsList(options, type)
 
+  # Helper functions
+  round_mtr <- function(x) lapply(x, round, digits = 3)
+
   # Defining variables for text output
   mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
   mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
+  mtr_rounded <- round_mtr(mtr)
 
   groups    <- options$group
   levels <- base::levels(dataset[[ groups ]])
@@ -1200,40 +1208,74 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   else if (options$effectSizeType == "hedges")
     effSizeName <- "Hedges' g"
 
+  # TODO: Split Parameter text into Student, Welch, Mann-Whitney according to optionsList$whichTests
+  # Additionally, require Assumptions to be enabled for the following table insert
+  # Add conditionals for the text statement "observed to be higher" into higher/lower/non-equal depending on options$textAlternative
+  # Brown-Forsythe EquiVar table insert
+  eqvar_obj <- jaspResults[["eqvarTableResults"]]$object
+  eqvar <- as.data.frame(eqvar_obj, row.names = options$dependent)
+  eqvar <- round(eqvar, 3)
+  # copied from above to use as conditional variable
+  nameOfEqVarTest <- switch(options$equalityOfVariancesTestType,
+                            "brownForsythe" = gettext("Brown-Forsythe"),
+                            "levene" = gettext("Levene's"))
+  nameOfEqVarTest <- ifelse(options$equalityOfVariancesTestType == "brownForsythe",
+                            "brownForsythe",
+                            "levene")
+  eqvar_sig <- ifelse(eqvar$p > 0.05, "not", "")
+  eqvar_rej <- ifelse(eqvar$p > 0.05, ", but we nevertheless report \nt", "and this is why we also report \nt")
+
   parametersText <- createJaspHtml(
     text = gettextf("As is apparent from the t-test table and the descriptive information,
-    the mean %1$s is observed to be higher for group=<b>%2$s</b> than for
-    group=<b>%3$s</b>. The location parameter equals the difference in the
-    two sample means (i.e., 9.9545), with a standard error of 4.3919.
-    The corresponding value for %4$s equals -0.6841, with a standard
-    error of 0.3182 and a 95%% confidence  interval ranging from -1.2895 to
-    -0.0710. According to Cohen's classification scheme, the value of
-    -0.6841 corresponds to an observed effect that is 'medium to large'.
-    [note to Arne: we need to add a reference on this]<br>
-    The Brown-Forsythe test for equality of variances was not [fork: omit 'not']
-    significant at the .05 level, but we nevertheless [fork: and this is why we also]
-    report the results from the Welch test, which assumes that the variances in the
+    the mean %1$s is observed to be higher for group = <b>%2$s</b> than for
+    group = <b>%3$s</b>. The location parameter equals the difference in the
+    two sample means (i.e., %4$s), with a standard error of %5$s.
+    The corresponding value for %6$s equals %7$s, with a standard
+    error of %8$s and a 95%% confidence interval ranging from %9$s to
+    %10$s. According to Cohen's classification scheme, the value of
+    %7$s corresponds to an observed effect that is 'medium to large'.
+    (Cohen, 1988; Funder & Ozer, 2018).<br>
+    The Brown-Forsythe test for equality of variances was %11$s
+    significant at the .05 level%12$s
+    he results from the Welch test, which assumes that the variances in the
     two groups are unequal. The location parameter in the Welch test equals
     the difference in the two sample means and the associated standard error
-    is 4.3076. The corresponding value for %4$s equals -0.6908, with a
-    standard error of 0.3185 and a 95%% confidence interval ranging from -1.2981
-    to -0.0750. According to Cohen's classification scheme, the value of
+    is 4.3076 %13$s. The corresponding value for %6$s equals -0.6908 %14$s, with a
+    standard error of 0.3185 %15$s and a 95%% confidence interval ranging from -1.2981 %16$s
+    to -0.0750 %17$s. According to Cohen's classification scheme, the value of
     -0.6908 corresponds to an observed effect that is 'medium to large'.<br>
     The Shapiro-Wilk test for normality was not [fork: omit 'not'] statistically
     significant at the .05 level, but we nevertheless [fork: and this is why
     we also] report the result from the Mann-Whitney test, which is based
     only on the ranks of the observations; therefore, the Mann-Whitney test
     is relatively robust. The Mann-Witney location parameter (i.e., the
-    Hodges-Lehmann estimate) equals -10.0001. The Mann-Whitney effect size
+    Hodges-Lehmann estimate) equals %18$s. The Mann-Whitney effect size
     measure is the the rank biserial correlation; here it equals -0.4410,
     with a standard error of 0.1744 and a 95%% confidence interval that
     ranges from -0.6745 to -0.1274.<br>
     For all estimates: the above confidence intervals do not identify a likely
     range of values for effect size. In order to obtain this information a
     Bayesian analysis would be needed (e.g., Morey et al., 2016;
-    van den Bergh, 2021).", options$dependent, levels[1], levels[2], effSizeName))
+    van den Bergh, 2021).", options$dependent, levels[1], levels[2], round(mtr[1,"md"], 3),
+                    round(mtr[1,"sed"], 3), effSizeName, round(mtr[1,"d"], 3),
+                    round(mtr[1,"effectSizeSe"], 3), round(mtr[1,"lowerCIeffectSize"], 3), round(mtr[1,"upperCIeffectSize"], 3),
+                    eqvar_sig, eqvar_rej, round(mtr[2,"sed"], 3), round(mtr[2,"d"], 3),
+                    round(mtr[2,"effectSizeSe"], 3), round(mtr[2,"lowerCIeffectSize"], 3), round(mtr[2,"upperCIeffectSize"], 3),
+                    round(mtr[3,"md"], 3)))
+
+  # Placeholder text TODO REMOVE
+  testingText <- createJaspHtml(
+    text = gettextf("<h2>Placeholder to print variables</h2>
+                        %1$s <p> %2$s <p>---<p> %3$s <p> %4$s <p>",
+                    paste(names(options), collapse = "; "),
+                    paste(options, collapse = "; "),
+                    paste(length(mtr), collapse = " "),
+                    paste(names(mtr), collapse = "; ")
+    ))
 
   jaspResults[["parametersText"]] <- parametersText
+
+  jaspResults[["testingText"]] <- testingText
 }
 
 .ttestHypothesisText <- function(jaspResults, dataset, options, ready, type) {
@@ -1253,7 +1295,6 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
   mtr_obj <- jaspResults[["mainTableResults"]]$object # get data table
   mtr <- as.data.frame(mtr_obj, row.names = optionsList$whichTests)
-  mtr_rounded <- lapply(mtr, round, digits = 3)
 
   jaspResults[["hypothesisTitle"]] <- hypothesisTitle
 
@@ -1286,22 +1327,24 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
                          "greater" = sprintf("the %s population being equal or greater than the %s population", levels[2], levels[1]),
                          "less" = sprintf("the %s population being equal or lesser than the %s population", levels[2], levels[1]))
 
-  # Vovk-Sellke #RETURNHERE
-  summaryVovkSellke <- if (options$vovkSellke) {
-    vovkSellkeLevel <- if (mtr_rounded$VovkSellkeMPR > 10) {
-      ", which is substantial [EJ APPROVAL FOR TEXT]"
-    } else {
-      ", which is not compelling and urges caution"
-    }
-    sprintf("The Vovk-Sellke maximum p-Ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
-            mtr_rounded$VovkSellkeMPR, vovkSellkeLevel)
-  } else ""
+
 
   # Create individual summaries for each test
   test_summaries <- lapply(row.names(mtr), function(test) {
     test_data <- round(mtr[test,], 3)
     significant <- test_data$p < 0.05
     significant_text <- if(significant) "" else "not"
+
+    # Vovk-Sellke
+    summaryVovkSellke <- if (options$vovkSellke) { #TODO Adapt for more tests
+      vovkSellkeLevel <- if (test_data$VovkSellkeMPR > 10) {
+        ", which is substantial"
+      } else {
+        ", which is not compelling and urges caution"
+      }
+      sprintf("The Vovk-Sellke maximum p-Ratio of %s indicates the maximum possible odds in favor of H1 over H0%s.",
+              test_data$VovkSellkeMPR, vovkSellkeLevel)
+    } else ""
 
     sprintf("For the %1$s test, the group difference is %2$s statistically significant at the .05 level: %3$s
       We may %4$s reject the null-hypothesis of %5$s. %6$s",
@@ -1356,7 +1399,13 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
     'Student' Gosset, W.G. (1908). The probable error of a mean. Biometrika. 6 (1): 1–25. doi:10.1093/biomet/6.1.1. hdl:10338.dmlcz/143545.
 
     <h5>Welch's T-Test</h5>
-    Welch, B. L. (1947). The generalization of 'Student's' problem when several different population variances are involved. Biometrika. 34 (1–2): 28–35. doi:10.1093/biomet/34.1-2.28"
+    Welch, B. L. (1947). The generalization of 'Student's' problem when several different population variances are involved. Biometrika. 34 (1–2), 28–35. doi:10.1093/biomet/34.1-2.28
+
+    <h5>Cohen's D</h5>
+    Cohen, J. (1988). Statistical Power Analysis for the Behavioral Sciences. Routledge. ISBN 978-1-134-74270-7.
+
+    Funder D.C., Ozer D.J. (2019). Evaluating Effect Size in Psychological Research: Sense and Nonsense. Advances in Methods and Practices in Psychological Science. 2 (2), 156-168. doi:10.1177/2515245919847202
+                    "
                     )
   )
   jaspResults[["references"]] <- references
