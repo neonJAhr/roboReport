@@ -792,29 +792,20 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
     # Output branch alternative hypothesis
     if (alternative == "twoSided") {
-        altHypoText <- "The report below is for a two-sided test, that is,
-                 the alternative hypothesis does not state the direction of the
-                 effect." }
+        altHypoText <- "The report below is for a two-sided test, that is, the alternative hypothesis does not state the direction of the effect." }
     else if (alternative == "greater")
-        altHypoText <- gettextf("The report below is testing whether the scores of
-                 <b>%1$s</b> are greater than the scores of <b>%2$s</b>.",
+        altHypoText <- gettextf("The report below is testing whether the scores of <b>%1$s</b> are greater than the scores of <b>%2$s</b>.",
                                 levels[1],
                                 levels[2] )
     else if (alternative == "less")
-        altHypoText <- gettextf("The report below is testing whether the scores of
-                 <b>%1$s</b> are less than the scores of <b>%2$s</b>.",
+        altHypoText <- gettextf("The report below is testing whether the scores of <b>%1$s</b> are less than the scores of <b>%2$s</b>.",
                                 levels[1],
                                 levels[2] )
     else altHypoText <- "No alternative hypothesis has been selected."
 
     # Create text
     introText <- createJaspHtml(text =
-                 gettextf("This is a report for an independent samples t-test.
-                 Interest centers on the comparison of two groups (i.e., group =
-                 <b>%1$s</b> versus group = <b>%2$s</b>) concerning their population
-                 means for the dependent variable <b>%3$s</b>. The t-test assumes that
-                 the <b>%3$s</b> data from each group are continuous and normally
-                 distributed. %4$s",
+                 gettextf("This is a report for an independent samples t-test. Interest centers on the comparison of two groups (i.e., group = <b>%1$s</b> versus group = <b>%2$s</b>) concerning their population means for the dependent variable <b>%3$s</b>. The t-test assumes that the <b>%3$s</b> data from each group are continuous and normally distributed. %4$s",
                  levels[1], levels[2], dependent, altHypoText))
     introText$dependOn(c("dependent", "group", "alternative"))
     jaspResults[["introText"]] <- introText
@@ -925,12 +916,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
       significant <- test_data$p < 0.05
       significant_text <- if(significant) "" else "not "
 
-      sprintf("For the %s test, the difference between %s is %sstatistically significant at the .05 level: %s
-      %s
-      We may %sreject the null-hypothesis of %s.
-      Note that this does not mean that the data provide evidence %s the null hypothesis
-      or provide evidence %s the alternative hypothesis for this test;
-      it also does not mean that the null hypothesis is %s to hold.",
+      sprintf("For the %s test, the difference between %s is %sstatistically significant at the .05 level: %s %s We may %sreject the null-hypothesis of %s. Note that this does not mean that the data provide evidence %s the null hypothesis or provide evidence %s the alternative hypothesis for this test; it also does not mean that the null hypothesis is %s to hold.",
               test,
               paste(levels, collapse = " and "),
               significant_text,
@@ -947,16 +933,11 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   all_summaries <- paste(test_summaries, collapse = "\n\n")
 
   # Create the overall summary text
-  text <- sprintf("The table above summarizes the outcome of the %s.
-    The dependent variable is %s, and the grouping variable is %s with levels %s.
-    The difference in the two sample means is %s, with a standard error of %s.
+  text <- sprintf("The table above summarizes the outcome of the %s. The dependent variable is %s, and the grouping variable is %s with levels %s. The difference in the two sample means is %s, with a standard error of %s.
 
     %s
 
-    These results also do not identify a likely range of values for effect size.
-    In order to address these questions, a Bayesian analysis would be needed.
-
-    %s",
+    These results also do not identify a likely range of values for effect size. In order to address these questions, a Bayesian analysis would be needed. %s",
                   tests_string,
                   dependent,
                   groups,
@@ -1032,8 +1013,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
 
 
   indiv_desc <- apply(desc, 1, function(row) {
-    sprintf("group = <b>%1$s</b> contains %2$s observations and has a mean <b>%3$s</b> of %4$s
-            with a standard deviation of %5$s",
+    sprintf("group = <b>%1$s</b> contains %2$s observations and has a mean <b>%3$s</b> of %4$s with a standard deviation of %5$s",
             row["group"],
             row["N"],
             row["variable"],
@@ -1045,15 +1025,11 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   # Final output text
   descriptivesText <- createJaspHtml(
     text = gettextf("
-      The table above summarizes the observed data for each group separately %1$s.
-      As can be seen from the table, %2$s.
+      The table above summarizes the observed data for each group separately %1$s. As can be seen from the table, %2$s.
 
       [Future Work may want to integrate the Descriptives table here.]
 
-      The observed mean <b>%3$s</b> in group = <b>%4$s</b> is %5$s than the observed
-      mean <b>%3$s</b> in group = <b>%6$s</b>. %7$s
-
-      For more descriptives, use the JASP Descriptives module.",
+      The observed mean <b>%3$s</b> in group = <b>%4$s</b> is %5$s than the observed mean <b>%3$s</b> in group = <b>%6$s</b>. %7$s",
                     rainPlotActive, base_desc, desc[1,"variable"],
                     levels[1], compare, levels[2], descripRainPlot))
 
@@ -1117,10 +1093,7 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
       norm_sig <- if(significant) "" else "not "
       norm_rej <- if(significant) "reject" else "retain"
 
-      sprintf("For group = <b>%s</b>, the Shapiro-Wilk test for normality is %s
-      statistically significant at the .05 level (i.e., p = %s),
-      and hence we %s the hypothesis that the data
-      for group = <b>%s</b> are normally distributed.",
+      sprintf("For group = <b>%s</b>, the Shapiro-Wilk test for normality is %s statistically significant at the .05 level (i.e., p = %s), and hence we %s the hypothesis that the data for group = <b>%s</b> are normally distributed.",
               row["lev"],
               norm_sig,
               round(as.numeric(row["p"]), 3),
@@ -1128,39 +1101,15 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
               row["lev"])
     })
     all_summaries <- paste(norm_summaries, collapse = "\n")
-    normalityText <- gettextf("%1$s Note that when the
-      Shapiro-Wilk test is statistically nonsignificant this does not mean that
-      the assumption of normality is met, or that the data support that
-      assertion. Likewise, when the Shapiro-Wilk test is statistically
-      significant this does not mean that the data provide evidence for
-      the assertion that the data are not normally distributed. In order
-      to address these questions a Bayesian analysis would be needed.<br>",
+    normalityText <- gettextf("%1$s Note that when the Shapiro-Wilk test is statistically nonsignificant this does not mean that the assumption of normality is met, or that the data support that assertion. Likewise, when the Shapiro-Wilk test is statistically significant this does not mean that the data provide evidence for the assertion that the data are not normally distributed. In order to address these questions a Bayesian analysis would be needed.<br>",
                               all_summaries)
   } else (normalityText <- "")
 
   if (options$equalityOfVariancesTest && (nameOfEqVarTest == "brownForsythe"))
-    equalVarText <- gettextf("The Brown-Forsythe test for equality of variances is %1$s
-      statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
-      Hence we can %6$s the null hypothesis that the variances
-      in both groups are equal. Note that when the Brown-Forsythe test is
-      statistically nonsignificant, this does not mean that the assumption
-      of equal variance is met, or that the data support that assertion.
-      Likewise, when the Brown-Forsythe test is statistically significant,
-      this does not mean that the data provide evidence for the assertion
-      that groups have different variances. In order to address these
-      questions a Bayesian analysis would be needed.",
+    equalVarText <- gettextf("The Brown-Forsythe test for equality of variances is %1$s statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s. Hence we can %6$s the null hypothesis that the variances in both groups are equal. Note that when the Brown-Forsythe test is statistically nonsignificant, this does not mean that the assumption of equal variance is met, or that the data support that assertion. Likewise, when the Brown-Forsythe test is statistically significant, this does not mean that the data provide evidence for the assertion that groups have different variances. In order to address these questions a Bayesian analysis would be needed.",
       eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
   else if (options$equalityOfVariancesTest && (nameOfEqVarTest == "levene"))
-    equalVarText <- gettextf("The Levene's test for equality of variances is %1$s
-      statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s.
-      Hence we can %6$s the null hypothesis that the variances
-      in both groups are equal. Note that when Levene's test is
-      statistically nonsignificant this does not mean that the assumption
-      of equal variance is met, or that the data support that assertion.
-      Likewise, when the Levene's test is statistically significant
-      this does not mean that the data provide evidence for the assertion
-      that groups have different variances. In order to address these
-      questions a Bayesian analysis would be needed.",
+    equalVarText <- gettextf("The Levene's test for equality of variances is %1$s statistically significant at the .05 level: F(%2$s,%3$s) = %4$s, p = %5$s. Hence we can %6$s the null hypothesis that the variances in both groups are equal. Note that when Levene's test is statistically nonsignificant this does not mean that the assumption of equal variance is met, or that the data support that assertion. Likewise, when the Levene's test is statistically significant this does not mean that the data provide evidence for the assertion that groups have different variances. In order to address these questions a Bayesian analysis would be needed.",
       eqvar_sig, eqvar$dfOne, eqvar$dfTwo, eqvar$fStat, eqvar$p, eqvar_rej)
   else (equalVarText <- "")
 
@@ -1228,37 +1177,12 @@ ttestIndependentMainTableRow <- function(variable, dataset, test, testStat, effS
   eqvar_rej <- ifelse(eqvar$p > 0.05, ", but we nevertheless report \nt", "and this is why we also report \nt")
 
   parametersText <- createJaspHtml(
-    text = gettextf("As is apparent from the t-test table and the descriptive information,
-    the mean %1$s is observed to be higher for group = <b>%2$s</b> than for
-    group = <b>%3$s</b>. The location parameter equals the difference in the
-    two sample means (i.e., %4$s), with a standard error of %5$s.
-    The corresponding value for %6$s equals %7$s, with a standard
-    error of %8$s and a 95%% confidence interval ranging from %9$s to
-    %10$s. According to Cohen's classification scheme, the value of
-    %7$s corresponds to an observed effect that is 'medium to large'.
-    (Cohen, 1988; Funder & Ozer, 2018).<br>
-    The Brown-Forsythe test for equality of variances was %11$s
-    significant at the .05 level%12$she
-    results from the Welch test, which assumes that the variances in the
-    two groups are unequal. The location parameter in the Welch test equals
-    the difference in the two sample means and the associated standard error
-    is %13$s. The corresponding value for %6$s equals %14$s, with a
-    standard error of 0.3185 %15$s and a 95%% confidence interval ranging from %16$s
-    to %17$s. According to Cohen's classification scheme, the value of
-    -0.6908 corresponds to an observed effect that is 'medium to large'.<br>
-    The Shapiro-Wilk test for normality was not [fork: omit 'not'] statistically
-    significant at the .05 level, but we nevertheless [fork: and this is why
-    we also] report the results from the Mann-Whitney test, which is based
-    only on the ranks of the observations; therefore, the Mann-Whitney test
-    is relatively robust. The Mann-Whitney location parameter (i.e., the
-    Hodges-Lehmann estimate) equals %18$s. The Mann-Whitney effect size
-    measure is the the rank biserial correlation; here it equals -0.441,
-    with a standard error of 0.174 and a 95%% confidence interval that
-    ranges from 0.127 to 0.674.<br>
-    The above confidence intervals do not identify a likely
-    range of values for effect size. In order to obtain this information a
-    Bayesian analysis would be needed (e.g., Morey et al., 2016;
-    van den Bergh, 2021).", options$dependent, levels[1], levels[2], round(mtr[1,"md"], 3),
+    text = gettextf("As is apparent from the t-test table and the descriptive information, the mean %1$s is observed to be higher for group = <b>%2$s</b> than for group = <b>%3$s</b>. The location parameter equals the difference in the two sample means (i.e., %4$s), with a standard error of %5$s. The corresponding value for %6$s equals %7$s, with a standard error of %8$s and a 95%% confidence interval ranging from %9$s to %10$s. According to Cohen's classification scheme, the value of %7$s corresponds to an observed effect that is 'medium to large'. (Cohen, 1988; Funder & Ozer, 2018).<br>
+
+                    The Brown-Forsythe test for equality of variances was %11$s significant at the .05 level%12$she results from the Welch test, which assumes that the variances in the  two groups are unequal. The location parameter in the Welch test equals the difference in the two sample means and the associated standard error is %13$s. The corresponding value for %6$s equals %14$s, with a standard error of 0.3185 %15$s and a 95%% confidence interval ranging from %16$s to %17$s. According to Cohen's classification scheme, the value of 0.6908 INSERT CORRECT NUMBER corresponds to an observed effect that is 'medium to large'.
+
+                    The Shapiro-Wilk test for normality was not [fork: omit 'not'] statistically significant at the .05 level, but we nevertheless [fork: and this is why we also] report the results from the Mann-Whitney test, which is based only on the ranks of the observations; therefore, the Mann-Whitney test is relatively robust. The Mann-Whitney location parameter (i.e., the Hodges-Lehmann estimate) equals %18$s. The Mann-Whitney effect size measure is the the rank biserial correlation; here it equals -0.441, with a standard error of 0.174 and a 95%% confidence interval that ranges from 0.127 to 0.674.<br> The above confidence intervals do not identify a likely range of values for effect size. In order to obtain this information a Bayesian analysis would be needed (e.g., Morey et al., 2016; van den Bergh, 2021).",
+                    options$dependent, levels[1], levels[2], round(mtr[1,"md"], 3),
                     round(mtr[1,"sed"], 3), effSizeName, round(mtr[1,"d"], 3),
                     round(mtr[1,"effectSizeSe"], 3), round(mtr[1,"lowerCIeffectSize"], 3), round(mtr[1,"upperCIeffectSize"], 3),
                     eqvar_sig, eqvar_rej, round(mtr[2,"sed"], 3), round(mtr[2,"d"], 3),
